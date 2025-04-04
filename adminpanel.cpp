@@ -17,46 +17,22 @@
  *
  */
 
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
-
-#include <QMainWindow>
-#include <QTextEdit>
-#include <QLineEdit>
-#include <QString>
-#include <QtAlgorithms>
-#include <QSystemTrayIcon>
-#include <QKeyEvent>
 #include "adminpanel.h"
+#include "ui_adminpanel.h"
 
-
-QT_BEGIN_NAMESPACE
-namespace Ui {
-class MainWindow;
-}
-QT_END_NAMESPACE
-
-class MainWindow : public QMainWindow
+AdminPanel::AdminPanel(QWidget *parent)
+    : QWidget(parent)
+    , ui(new Ui::AdminPanel)
 {
-    Q_OBJECT
+    ui->setupUi(this);
+}
 
-public:
-    MainWindow(QWidget *parent = nullptr);
-    ~MainWindow();
+void AdminPanel::closeEvent(QCloseEvent *event) {
+    emit closed();
+    QWidget::closeEvent(event);
+}
 
-signals:
-    void enterToSubmit();
-
-private slots:
-    void onSubmitClicked();
-
-    void onAdminPanelClicked();
-
-    void AdminPanelClosed();
-
-
-private:
-    Ui::MainWindow *ui;
-    AdminPanel *apui = nullptr;
-};
-#endif // MAINWINDOW_H
+AdminPanel::~AdminPanel()
+{
+    delete ui;
+}

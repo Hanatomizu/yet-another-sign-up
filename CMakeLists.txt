@@ -38,6 +38,9 @@ else()
     else()
         add_executable(yet-another-sign-up
             ${PROJECT_SOURCES}
+            signup.cpp
+            signup.h
+            adminpanel.h adminpanel.cpp adminpanel.ui
         )
     endif()
 endif()
