@@ -1,5 +1,5 @@
 /**
- *     Yet Another Sign Up - A new sign up system for lz
+ *     Yet Another Sign Up - A new sign up system for class managements
  *     Copyright (C) 2025  知念夏世 <chart11from21@outlook.com>
 
  *    This program is free software: you can redistribute it and/or modify

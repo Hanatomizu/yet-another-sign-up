@@ -42,6 +42,76 @@
     <string>保存</string>
    </property>
   </widget>
+  <widget class="QLabel" name="NamelistLabel">
+   <property name="geometry">
+    <rect>
+     <x>40</x>
+     <y>30</y>
+     <width>31</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>名单</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="NamelistPath">
+   <property name="geometry">
+    <rect>
+     <x>70</x>
+     <y>30</y>
+     <width>531</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>./cfg/namelist</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton">
+   <property name="geometry">
+    <rect>
+     <x>610</x>
+     <y>30</y>
+     <width>80</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>选择...</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>40</x>
+     <y>60</y>
+     <width>58</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>时间</string>
+   </property>
+  </widget>
+  <widget class="QPlainTextEdit" name="plainTextEdit">
+   <property name="geometry">
+    <rect>
+     <x>70</x>
+     <y>60</y>
+     <width>621</width>
+     <height>151</height>
+    </rect>
+   </property>
+   <property name="plainText">
+    <string>Morning Start 6 00
+Morning Stop 6 58
+Noon Start 12 00
+Noon Stop 12 28
+Evening Start 17 00
+Evening Stop 17 48</string>
+   </property>
+  </widget>
  </widget>
  <resources/>
  <connections/>

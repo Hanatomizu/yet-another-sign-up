@@ -41,6 +41,8 @@ else()
             signup.cpp
             signup.h
             adminpanel.h adminpanel.cpp adminpanel.ui
+            LICENSE
+            README.md
         )
     endif()
 endif()
