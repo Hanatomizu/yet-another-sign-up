@@ -17,15 +17,29 @@
  *
  */
 
-#include <algorithm>
 #include <QString>
+#include <QFile>
+#include <QIODevice>
+#include <QTextStream>
+#include <QDebug>
 
 #ifndef SIGNUP_H
 #define SIGNUP_H
 
-QString names[100];
+class Yasu{
+public:
+// Directory for namelist file
+QString namelistDirectory;
 
-void initNamelist();
+// Students' names
+QString stunames[100];
 
+int initConfigFiles();
+
+// init QString Names
+int initNamelist();
+
+int sign_up(QString);
+};
 
 #endif // SIGNUP_H

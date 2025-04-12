@@ -27,7 +27,10 @@
 #include <QtAlgorithms>
 #include <QSystemTrayIcon>
 #include <QKeyEvent>
+
+
 #include "adminpanel.h"
+#include "signup.h"
 
 
 QT_BEGIN_NAMESPACE

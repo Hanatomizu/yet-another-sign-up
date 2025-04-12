@@ -20,3 +20,24 @@
 
 #include "signup.h"
 
+int Yasu::initConfigFiles(){
+
+}
+int Yasu::initNamelist(){
+    QFile file(Yasu::namelistDirectory);
+    if (!QFile::exists(Yasu::namelistDirectory)) {
+        return -1;
+    }
+    // bool ok = file.open(QIODevice::ReadOnly);
+    // file.close();
+    file.open(QIODevice::ReadOnly | QIODevice::Text);
+    QTextStream in(&file);
+    for (int i = 1; !in.atEnd(); ++i) {
+        Yasu::stunames[i] = in.readLine();
+    }
+    qDebug() << "Read namelist Finished\n";
+    return 0;
+}
+int Yasu::sign_up(QString s) {
+    return -1;
+}
