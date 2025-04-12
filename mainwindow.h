@@ -27,6 +27,7 @@
 #include <QtAlgorithms>
 #include <QSystemTrayIcon>
 #include <QKeyEvent>
+#include <QPair>
 
 
 #include "adminpanel.h"
@@ -61,5 +62,6 @@ private slots:
 private:
     Ui::MainWindow *ui;
     AdminPanel *apui = nullptr;
+    Yasu *yasu = new Yasu;
 };
 #endif // MAINWINDOW_H

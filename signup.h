@@ -17,6 +17,7 @@
  *
  */
 
+#include <string>
 #include <QString>
 #include <QFile>
 #include <QIODevice>
@@ -38,13 +39,13 @@ private:
         int id;
         QString name;
         QString stime;
-
+        SignUpTime(int _id, QString _name, QString _stime):
+            id(_id),
+            name(_name),
+            stime(_stime){}
     };
 public:
-    SignUpTime::SignUpTime(int _id, QString _name, QString _stime):
-        id(_id),
-        name(_name),
-        stime(_stime){}
+
 
     // Directory
     QString mainConfigDirectory;
@@ -68,7 +69,7 @@ public:
     // init QString Names
     int initNamelist();
 
-    int sign_up(QString);
+    QPair<int, QString> sign_up(QString);
     };
 
 #endif // SIGNUP_H

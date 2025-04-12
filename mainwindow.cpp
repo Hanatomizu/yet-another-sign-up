@@ -34,8 +34,10 @@ void MainWindow::onSubmitClicked(){
     QString numb = ui->NumberInput->text();
     ui->NumberInput->setText("");
 
-
-    ui->Announcer->setText(numb + " 已签到\n" + ui->Announcer->toPlainText());
+    QPair<int, QString> status = yasu->sign_up(numb);
+    if (status.first)
+        ui->Announcer->setText(status.second + " 已签到\n" + ui->Announcer->toPlainText());
+    else ui->Announcer->setText("签到失败，请检查学号输入是否正确\n" + ui->Announcer->toPlainText());
 }
 
 void MainWindow::onAdminPanelClicked(){
@@ -55,4 +57,5 @@ void MainWindow::AdminPanelClosed(){
 MainWindow::~MainWindow()
 {
     delete ui;
+    delete yasu;
 }

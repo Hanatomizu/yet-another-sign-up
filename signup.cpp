@@ -21,8 +21,9 @@
 #include "signup.h"
 
 namespace SignUpAlgorithms{
-int qstringToInt(QString s) {
+int qstringToInt(QString _s) {
     int res = 0;
+    std::string s = _s.toStdString();
     for (auto i : s) {
         if (isdigit(i)) {
             res = res*10 + i - '0';
@@ -64,13 +65,16 @@ int Yasu::initNamelist(){
     }
     // bool ok = file.open(QIODevice::ReadOnly);
     // file.close();
-    file.open(QIODevice::ReadOnly | QIODevice::Text);
-    QTextStream in(&file);
-    for (int i = 1; !in.atEnd(); ++i) {
-        Yasu::stu[i].id = i, Yasu::stu[i].name = in.readLine();
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)){
+        QTextStream in(&file);
+        for (int i = 1; !in.atEnd(); ++i) {
+            Yasu::stu[i].id = i, Yasu::stu[i].name = in.readLine();
+        }
+        qDebug() << "Read namelist Finished\n";
+        file.close();
+    } else {
+        qDebug() << "Error on reading namelist!\n";
     }
-    qDebug() << "Read namelist Finished\n";
-    file.close();
     return 0;
 }
 
@@ -78,7 +82,7 @@ int Yasu::initNamelist(){
 
 QPair<int, QString> Yasu::sign_up(QString s) {
     int number = SignUpAlgorithms::qstringToInt(s);
-    if (number == -1) return qMakePair(-1, "");
+    if (number == -1) return qMakePair(-1, QString());
     QDateTime curtime = QDateTime::currentDateTime();
     Yasu::signups.push_back(
         Yasu::SignUpTime(
@@ -89,10 +93,14 @@ QPair<int, QString> Yasu::sign_up(QString s) {
     );
 
     QFile logs(Yasu::logFilePath);
-    logs.open(QIODevice::WriteOnly | QIODevice::Text);
 
-
-
+    // To be completed
+    if (logs.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+        QTextStream log(&logs);
+        log << (curtime.toString("yyyy.MM.dd hh:mm::ss") + " " + stu[number].name + "已签到\n");
+    } else {
+        qDebug() << "Failed to append the file: " << logs.errorString();
+    }
     logs.close();
 
     return qMakePair(0, stu[number].name);
