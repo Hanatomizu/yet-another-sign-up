@@ -20,8 +20,42 @@
 
 #include "signup.h"
 
-int Yasu::initConfigFiles(){
+namespace SignUpAlgorithms{
+int qstringToInt(QString s) {
+    int res = 0;
+    for (auto i : s) {
+        if (isdigit(i)) {
+            res = res*10 + i - '0';
+        } else {
+            return -1;
+        }
+    }
+    return 0;
+}
+}
 
+int Yasu::initConfigFiles(){
+    QFile mainConfig(Yasu::mainConfigDirectory);
+    QTextStream in(&mainConfig);
+    while (!in.atEnd()) {
+        QString key = in.readLine();
+        QString val = in.readLine();
+        if (key == "[namelistDirectory]") {
+            Yasu::namelistDirectory = val;
+        } else if (key == "[memberNumber]") {
+            Yasu::studentcnts = SignUpAlgorithms::qstringToInt(val);
+        }
+    }
+
+    // init date time log file
+
+    QDateTime curtime = QDateTime::currentDateTime();
+    Yasu::logFilePath = "./logs/" + curtime.toString("yyyy-MM-dd.log");
+    Yasu::dataFilePath = "./data/" + curtime.toString("yyyy-MM-dd.data");
+
+
+    mainConfig.close();
+    return 0;
 }
 int Yasu::initNamelist(){
     QFile file(Yasu::namelistDirectory);
@@ -33,11 +67,33 @@ int Yasu::initNamelist(){
     file.open(QIODevice::ReadOnly | QIODevice::Text);
     QTextStream in(&file);
     for (int i = 1; !in.atEnd(); ++i) {
-        Yasu::stunames[i] = in.readLine();
+        Yasu::stu[i].id = i, Yasu::stu[i].name = in.readLine();
     }
     qDebug() << "Read namelist Finished\n";
+    file.close();
     return 0;
 }
-int Yasu::sign_up(QString s) {
-    return -1;
+
+
+
+QPair<int, QString> Yasu::sign_up(QString s) {
+    int number = SignUpAlgorithms::qstringToInt(s);
+    if (number == -1) return qMakePair(-1, "");
+    QDateTime curtime = QDateTime::currentDateTime();
+    Yasu::signups.push_back(
+        Yasu::SignUpTime(
+            number,
+            stu[number].name,
+            curtime.toString("yyyy.MM.dd hh:mm::ss")
+        )
+    );
+
+    QFile logs(Yasu::logFilePath);
+    logs.open(QIODevice::WriteOnly | QIODevice::Text);
+
+
+
+    logs.close();
+
+    return qMakePair(0, stu[number].name);
 }

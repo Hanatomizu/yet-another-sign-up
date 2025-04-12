@@ -43,6 +43,8 @@ else()
             adminpanel.h adminpanel.cpp adminpanel.ui
             LICENSE
             README.md
+            Resources/icon.jpeg
+            cfg/config
         )
     endif()
 endif()

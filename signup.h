@@ -22,24 +22,53 @@
 #include <QIODevice>
 #include <QTextStream>
 #include <QDebug>
+#include <QVector>
+#include <QDateTime>
 
 #ifndef SIGNUP_H
 #define SIGNUP_H
 
 class Yasu{
+private:
+    struct Student{
+        int id;
+        QString name;
+    };
+    struct SignUpTime{
+        int id;
+        QString name;
+        QString stime;
+
+    };
 public:
-// Directory for namelist file
-QString namelistDirectory;
+    SignUpTime::SignUpTime(int _id, QString _name, QString _stime):
+        id(_id),
+        name(_name),
+        stime(_stime){}
 
-// Students' names
-QString stunames[100];
+    // Directory
+    QString mainConfigDirectory;
+    // Directory for namelist file
+    QString namelistDirectory;
+    // Students' counts
+    int studentcnts;
+    // Student Sign up Status
+    Student stu[100];
 
-int initConfigFiles();
+    // Current Date Logs File
+    QString logFilePath;
+    QString dataFilePath;
 
-// init QString Names
-int initNamelist();
+    // Storages
+    QVector<SignUpTime> signups;
+    QVector<SignUpTime> lates;
 
-int sign_up(QString);
-};
+    int initConfigFiles();
+
+    // init QString Names
+    int initNamelist();
+
+    int sign_up(QString);
+    };
 
 #endif // SIGNUP_H
