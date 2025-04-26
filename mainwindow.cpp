@@ -28,6 +28,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->AdminPanelEntrance, &QPushButton::released, this, &MainWindow::onAdminPanelClicked);
     connect(ui->Submit, &QPushButton::released, this, &MainWindow::onSubmitClicked);
     connect(ui->NumberInput, &QLineEdit::returnPressed, this, &MainWindow::onSubmitClicked);
+    yasu->initConfigFiles();
+    yasu->initNamelist();
 }
 
 void MainWindow::onSubmitClicked(){
@@ -35,9 +37,14 @@ void MainWindow::onSubmitClicked(){
     ui->NumberInput->setText("");
 
     QPair<int, QString> status = yasu->sign_up(numb);
-    if (status.first)
+    if (status.first == 0){
         ui->Announcer->setText(status.second + " 已签到\n" + ui->Announcer->toPlainText());
-    else ui->Announcer->setText("签到失败，请检查学号输入是否正确\n" + ui->Announcer->toPlainText());
+        qDebug() << status.second << "Signed up successfully" << '\n';
+    }
+    else{
+        ui->Announcer->setText("签到失败，请检查学号输入是否正确\n" + ui->Announcer->toPlainText());
+        qDebug() << "Failed to sign up, Error code: " << status.first << '\n';
+    }
 }
 
 void MainWindow::onAdminPanelClicked(){

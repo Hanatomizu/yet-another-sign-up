@@ -20,11 +20,13 @@
 #include <string>
 #include <QString>
 #include <QFile>
+#include <QDir>
 #include <QIODevice>
 #include <QTextStream>
 #include <QDebug>
 #include <QVector>
 #include <QDateTime>
+#include <QCoreApplication>
 
 #ifndef SIGNUP_H
 #define SIGNUP_H

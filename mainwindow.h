@@ -28,6 +28,7 @@
 #include <QSystemTrayIcon>
 #include <QKeyEvent>
 #include <QPair>
+#include <QDebug>
 
 
 #include "adminpanel.h"

@@ -17,6 +17,10 @@ set(PROJECT_SOURCES
         mainwindow.cpp
         mainwindow.h
         mainwindow.ui
+        signup.cpp
+        signup.h
+        adminpanel.h adminpanel.cpp adminpanel.ui
+        LICENSE
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -38,13 +42,9 @@ else()
     else()
         add_executable(yet-another-sign-up
             ${PROJECT_SOURCES}
-            signup.cpp
-            signup.h
-            adminpanel.h adminpanel.cpp adminpanel.ui
             LICENSE
             README.md
             Resources/icon.jpeg
-            cfg/config
         )
     endif()
 endif()

@@ -31,45 +31,120 @@ int qstringToInt(QString _s) {
             return -1;
         }
     }
-    return 0;
+    return res;
 }
 }
 
 int Yasu::initConfigFiles(){
-    QFile mainConfig(Yasu::mainConfigDirectory);
-    QTextStream in(&mainConfig);
-    while (!in.atEnd()) {
-        QString key = in.readLine();
-        QString val = in.readLine();
-        if (key == "[namelistDirectory]") {
-            Yasu::namelistDirectory = val;
-        } else if (key == "[memberNumber]") {
-            Yasu::studentcnts = SignUpAlgorithms::qstringToInt(val);
+    Yasu::mainConfigDirectory = QDir::cleanPath(
+        QCoreApplication::applicationDirPath() +
+        QDir::separator()+
+        QString("config")
+    );
+    if (!QFile::exists(Yasu::mainConfigDirectory)) {
+        // Load Default Config
+        qDebug() << QString("Main Config File Does not Exist!!!") << '\n';
+        Yasu::namelistDirectory = QDir::cleanPath(
+            QCoreApplication::applicationDirPath() +
+            QDir::separator()+
+            QString("names")
+        );
+
+        Yasu::studentcnts = 50;
+    } else {
+        QFile mainConfig(Yasu::mainConfigDirectory);
+        if (mainConfig.open(QIODevice::ReadOnly | QIODevice::Text) ){
+            QTextStream in(&mainConfig);
+            while (!in.atEnd()) {
+                QString key = in.readLine();
+                QString val = in.readLine();
+                if (key == "[namelistDirectory]") {
+                    Yasu::namelistDirectory = QDir::cleanPath(
+                        QCoreApplication::applicationDirPath() +
+                        QDir::separator() +
+                        val
+                    );
+                }
+            }
+            mainConfig.close();
+        } else {
+            qDebug() << "Failed to read config File: " << mainConfigDirectory;
+            qDebug() << mainConfig.errorString() << '\n';
         }
     }
 
     // init date time log file
 
     QDateTime curtime = QDateTime::currentDateTime();
-    Yasu::logFilePath = "./logs/" + curtime.toString("yyyy-MM-dd.log");
-    Yasu::dataFilePath = "./data/" + curtime.toString("yyyy-MM-dd.data");
+    Yasu::logFilePath = QCoreApplication::applicationDirPath() +
+                        QDir::separator() +
+                        QString("logs") +
+                        QDir::separator() +
+                        curtime.toString("yyyy-MM-dd.log");
+    Yasu::dataFilePath =
+                        QCoreApplication::applicationDirPath() +
+                        QDir::separator();
+                        QString("data") +
+                        QDir::separator() +
+                        curtime.toString("yyyy-MM-dd.data");
 
+    QString logDirPath =
+                        QCoreApplication::applicationDirPath() +
+                        QDir::separator() +
+                        QString("logs");
+    QString dataDirPath =
+                        QCoreApplication::applicationDirPath() +
+                        QDir::separator() +
+                        QString("data");
 
-    mainConfig.close();
+    QDir logDir(logDirPath);
+    if (!logDir.exists()) {
+        logDir.mkdir(logDirPath);
+        qDebug() << "Log Directory Created!";
+    }
+    QDir dataDir(dataDirPath);
+    if (!dataDir.exists()) {
+        dataDir.mkdir(dataDirPath);
+        qDebug() << "Data Directory Created!";
+    }
+
+    if (!QFile::exists(logFilePath)) {
+        QFile logFile(logFilePath);
+        if(logFile.open(QIODevice::ReadWrite | QIODevice::Text)) {
+            logFile.write(curtime.toString("- yyyy-MM-dd yasu created this file\n").toUtf8());
+        } else {
+            qDebug() << "Error: log file cannot be created" << logFile.errorString();
+        }
+        logFile.close();
+    }
+
+    if (!QFile::exists(dataFilePath)) {
+        QFile dataFile(dataFilePath);
+        if (dataFile.open(QIODevice::ReadWrite | QIODevice::Text)){
+            dataFile.write(curtime.toString("- yyyy-MM-dd yasu created this file\n").toUtf8());
+        } else {
+            qDebug() << "Error: data file cannot be created" << dataFile.errorString();
+        }
+        dataFile.close();
+    }
+
     return 0;
 }
 int Yasu::initNamelist(){
     QFile file(Yasu::namelistDirectory);
     if (!QFile::exists(Yasu::namelistDirectory)) {
+        qDebug() << "Name List File Does not Exists" << '\n';
         return -1;
     }
-    // bool ok = file.open(QIODevice::ReadOnly);
+    // bool ok = file.open(QIODevice::ReadWrite);
     // file.close();
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)){
         QTextStream in(&file);
-        for (int i = 1; !in.atEnd(); ++i) {
-            Yasu::stu[i].id = i, Yasu::stu[i].name = in.readLine();
+        for (Yasu::studentcnts = 1; !in.atEnd(); ++Yasu::studentcnts) {
+            Yasu::stu[Yasu::studentcnts].id = Yasu::studentcnts;
+            Yasu::stu[Yasu::studentcnts].name = in.readLine();
         }
+        --Yasu::studentcnts;
         qDebug() << "Read namelist Finished\n";
         file.close();
     } else {
@@ -82,7 +157,15 @@ int Yasu::initNamelist(){
 
 QPair<int, QString> Yasu::sign_up(QString s) {
     int number = SignUpAlgorithms::qstringToInt(s);
-    if (number == -1) return qMakePair(-1, QString());
+    qDebug() << "New Sign Up Request Received, Number: " << number;
+    if (number == -1) {
+        qDebug() << "Error: Illeagl Input!";
+        return qMakePair(-1, QString());
+    }
+    if (number < 1 || number > studentcnts) {
+        qDebug() << "Error: Number Out of Range.";
+        return qMakePair(-1, QString());
+    }
     QDateTime curtime = QDateTime::currentDateTime();
     Yasu::signups.push_back(
         Yasu::SignUpTime(
@@ -94,10 +177,9 @@ QPair<int, QString> Yasu::sign_up(QString s) {
 
     QFile logs(Yasu::logFilePath);
 
-    // To be completed
-    if (logs.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+    if (logs.open(QIODevice::ReadWrite | QIODevice::Append | QIODevice::Text)) {
         QTextStream log(&logs);
-        log << (curtime.toString("yyyy.MM.dd hh:mm::ss") + " " + stu[number].name + "已签到\n");
+        log << (curtime.toString("yyyy.MM.dd hh:mm:ss") + ", " + stu[number].name + ", Signed\n");
     } else {
         qDebug() << "Failed to append the file: " << logs.errorString();
     }
