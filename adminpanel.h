@@ -24,6 +24,8 @@
 #include <QWidget>
 #include <QCloseEvent>
 
+#include "arbiter.h"
+
 namespace Ui {
 class AdminPanel;
 }
@@ -39,11 +41,17 @@ public:
 signals:
     void closed();
 
+private slots:
+    void onArbiterClicked();
+    void arbiterClosed();
+
+
 protected:
     void closeEvent(QCloseEvent *event) override;
 
 private:
     Ui::AdminPanel *ui;
+    arbiter *arbiterui = nullptr;
 };
 
 #endif // ADMINPANEL_H
