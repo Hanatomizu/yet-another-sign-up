@@ -33,6 +33,7 @@
 
 #include "adminpanel.h"
 #include "signup.h"
+#include "arbiter.h"
 
 
 QT_BEGIN_NAMESPACE
@@ -56,13 +57,16 @@ private slots:
     void onSubmitClicked();
 
     void onAdminPanelClicked();
-
     void AdminPanelClosed();
+
+    void onArbiterClicked();
+    void arbiterClosed();
 
 
 private:
     Ui::MainWindow *ui;
     AdminPanel *apui = nullptr;
+    arbiter *arbiterui = nullptr;
     Yasu *yasu = new Yasu;
 };
 #endif // MAINWINDOW_H

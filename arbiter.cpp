@@ -10,6 +10,11 @@ arbiter::arbiter(QWidget *parent)
 
 }
 
+void arbiter::closeEvent(QCloseEvent *event) {
+    emit closed();
+    QWidget::closeEvent(event);
+}
+
 arbiter::~arbiter()
 {
     delete ui;

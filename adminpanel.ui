@@ -42,6 +42,19 @@
     <string>保存</string>
    </property>
   </widget>
+  <widget class="QPushButton" name="ButtonCheckStat">
+   <property name="geometry">
+    <rect>
+     <x>40</x>
+     <y>30</y>
+     <width>86</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>查看统计数据</string>
+   </property>
+  </widget>
  </widget>
  <resources/>
  <connections/>

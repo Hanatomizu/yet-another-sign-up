@@ -15,6 +15,12 @@ public:
     explicit arbiter(QWidget *parent = nullptr);
     ~arbiter();
 
+signals:
+    void closed();
+
+protected:
+    void closeEvent(QCloseEvent *event) override;
+
 private:
     Ui::arbiter *ui;
 };

@@ -57,9 +57,22 @@ void MainWindow::onAdminPanelClicked(){
         apui->show();
     }
 }
-
 void MainWindow::AdminPanelClosed(){
     apui = nullptr;
+    this->setEnabled(1);
+}
+
+void MainWindow::onArbiterClicked(){
+    if (!arbiterui) {
+        this->setEnabled(0);
+        arbiterui = new arbiter();
+        connect(arbiterui, &arbiter::closed, this, &MainWindow::arbiterClosed);
+        arbiterui->show();
+    }
+}
+
+void MainWindow::arbiterClosed(){
+    arbiterui = nullptr;
     this->setEnabled(1);
 }
 

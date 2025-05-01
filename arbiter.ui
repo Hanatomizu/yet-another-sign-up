@@ -6,13 +6,85 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>300</height>
+    <width>648</width>
+    <height>392</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
+  <widget class="QPlainTextEdit" name="signedList">
+   <property name="geometry">
+    <rect>
+     <x>50</x>
+     <y>100</y>
+     <width>161</width>
+     <height>241</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QPlainTextEdit" name="unsignedList">
+   <property name="geometry">
+    <rect>
+     <x>240</x>
+     <y>100</y>
+     <width>161</width>
+     <height>241</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QPlainTextEdit" name="latedList">
+   <property name="geometry">
+    <rect>
+     <x>430</x>
+     <y>100</y>
+     <width>161</width>
+     <height>241</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QDateEdit" name="dateEdit">
+   <property name="geometry">
+    <rect>
+     <x>160</x>
+     <y>30</y>
+     <width>351</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="displayFormat">
+    <string>yyyy-MM-dd</string>
+   </property>
+   <property name="calendarPopup">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>50</x>
+     <y>40</y>
+     <width>101</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>请选择查看日期：</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton">
+   <property name="geometry">
+    <rect>
+     <x>520</x>
+     <y>30</y>
+     <width>71</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>查看数据</string>
+   </property>
+  </widget>
  </widget>
  <resources/>
  <connections/>
