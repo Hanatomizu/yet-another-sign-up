@@ -17,9 +17,9 @@ set(PROJECT_SOURCES
         mainwindow.cpp
         mainwindow.h
         mainwindow.ui
-        signup.cpp
-        signup.h
+        signup.cpp signup.h
         adminpanel.h adminpanel.cpp adminpanel.ui
+        arbiter.h arbiter.cpp arbiter.ui
         LICENSE
 )
 
@@ -45,8 +45,6 @@ else()
             LICENSE
             README.md
             Resources/icon.jpeg
-
-
         )
     endif()
 endif()
