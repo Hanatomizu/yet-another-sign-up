@@ -45,6 +45,8 @@ else()
             LICENSE
             README.md
             Resources/icon.jpeg
+
+
         )
     endif()
 endif()

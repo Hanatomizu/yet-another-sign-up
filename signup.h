@@ -46,8 +46,6 @@ private:
             name(_name),
             stime(_stime){}
     };
-public:
-
 
     // Directory
     QString mainConfigDirectory;
@@ -57,21 +55,23 @@ public:
     int studentcnts;
     // Student Sign up Status
     Student stu[100];
+    bool isSigned[100];
 
-    // Current Date Logs File
-    QString logFilePath;
-    QString dataFilePath;
 
     // Storages
     QVector<SignUpTime> signups;
     QVector<SignUpTime> lates;
+    // Current Date Logs File
+    QString logFilePath;
+    QString dataFilePath;
+    int writeLog(QString);
 
+public:
     int initConfigFiles();
-
     // init QString Names
     int initNamelist();
-
     QPair<int, QString> sign_up(QString);
-    };
+
+};
 
 #endif // SIGNUP_H

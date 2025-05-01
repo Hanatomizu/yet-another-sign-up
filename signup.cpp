@@ -111,7 +111,7 @@ int Yasu::initConfigFiles(){
     if (!QFile::exists(logFilePath)) {
         QFile logFile(logFilePath);
         if(logFile.open(QIODevice::ReadWrite | QIODevice::Text)) {
-            logFile.write(curtime.toString("- yyyy-MM-dd yasu created this file\n").toUtf8());
+            logFile.write((QString("- ") + curtime.toString("yyyy-MM-dd") + QString(" yasu created this file\n")).toUtf8());
         } else {
             qDebug() << "Error: log file cannot be created" << logFile.errorString();
         }
@@ -153,7 +153,20 @@ int Yasu::initNamelist(){
     return 0;
 }
 
-
+int Yasu::writeLog(QString _contents){
+    QFile logs(Yasu::logFilePath);
+    int stat = 1;
+    if (logs.open(QIODevice::ReadWrite | QIODevice::Append | QIODevice::Text)) {
+        QTextStream log(&logs);
+        log << _contents;
+        stat = 0;
+    } else {
+        qDebug() << "Failed to append the file: " << logs.errorString();
+        stat = -1;
+    }
+    logs.close();
+    return stat;
+}
 
 QPair<int, QString> Yasu::sign_up(QString s) {
     int number = SignUpAlgorithms::qstringToInt(s);
@@ -166,7 +179,16 @@ QPair<int, QString> Yasu::sign_up(QString s) {
         qDebug() << "Error: Number Out of Range.";
         return qMakePair(-1, QString());
     }
+
     QDateTime curtime = QDateTime::currentDateTime();
+
+    if (Yasu::isSigned[number]) {
+        writeLog((curtime.toString("yyyy.MM.dd hh:mm:ss") + ", " + stu[number].name + ", Resigned\n"));
+        return qMakePair(2, QString());
+    } else {
+        isSigned[number] = 1;
+    }
+
     Yasu::signups.push_back(
         Yasu::SignUpTime(
             number,
@@ -175,15 +197,7 @@ QPair<int, QString> Yasu::sign_up(QString s) {
         )
     );
 
-    QFile logs(Yasu::logFilePath);
-
-    if (logs.open(QIODevice::ReadWrite | QIODevice::Append | QIODevice::Text)) {
-        QTextStream log(&logs);
-        log << (curtime.toString("yyyy.MM.dd hh:mm:ss") + ", " + stu[number].name + ", Signed\n");
-    } else {
-        qDebug() << "Failed to append the file: " << logs.errorString();
-    }
-    logs.close();
+    writeLog((curtime.toString("yyyy.MM.dd hh:mm:ss") + ", " + stu[number].name + ", Signed\n"));
 
     return qMakePair(0, stu[number].name);
 }

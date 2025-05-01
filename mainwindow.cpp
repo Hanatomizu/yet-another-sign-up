@@ -40,8 +40,10 @@ void MainWindow::onSubmitClicked(){
     if (status.first == 0){
         ui->Announcer->setText(status.second + " 已签到\n" + ui->Announcer->toPlainText());
         qDebug() << status.second << "Signed up successfully" << '\n';
-    }
-    else{
+    } else if (status.first == 2) {
+        ui->Announcer->setText("签到失败，你已签到\n" + ui->Announcer->toPlainText());
+        qDebug() << "Failed to sign up, Error code: " << status.first << '\n';
+    } else{
         ui->Announcer->setText("签到失败，请检查学号输入是否正确\n" + ui->Announcer->toPlainText());
         qDebug() << "Failed to sign up, Error code: " << status.first << '\n';
     }
