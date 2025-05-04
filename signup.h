@@ -18,6 +18,8 @@
  */
 
 #include <string>
+#include <vector>
+#include <map>
 #include <QString>
 #include <QFile>
 #include <QDir>
@@ -30,6 +32,9 @@
 
 #ifndef SIGNUP_H
 #define SIGNUP_H
+
+extern std::vector<QString> extstunames;
+extern std::map<QString, int> nti; // Name to ID
 
 class Yasu{
 private:

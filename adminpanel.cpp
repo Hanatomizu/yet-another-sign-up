@@ -31,7 +31,7 @@ AdminPanel::AdminPanel(QWidget *parent)
 }
 
 void AdminPanel::closeEvent(QCloseEvent *event) {
-    emit closed();
+    emit AdminPanel::closed();
     QWidget::closeEvent(event);
 }
 

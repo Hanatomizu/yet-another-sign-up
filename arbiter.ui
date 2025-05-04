@@ -13,7 +13,7 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <widget class="QPlainTextEdit" name="signedList">
+  <widget class="QPlainTextEdit" name="list1">
    <property name="geometry">
     <rect>
      <x>50</x>
@@ -23,7 +23,7 @@
     </rect>
    </property>
   </widget>
-  <widget class="QPlainTextEdit" name="unsignedList">
+  <widget class="QPlainTextEdit" name="list2">
    <property name="geometry">
     <rect>
      <x>240</x>
@@ -33,7 +33,7 @@
     </rect>
    </property>
   </widget>
-  <widget class="QPlainTextEdit" name="latedList">
+  <widget class="QPlainTextEdit" name="list3">
    <property name="geometry">
     <rect>
      <x>430</x>
@@ -72,7 +72,7 @@
     <string>请选择查看日期：</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="pushButton">
+  <widget class="QPushButton" name="chkdataButton">
    <property name="geometry">
     <rect>
      <x>520</x>

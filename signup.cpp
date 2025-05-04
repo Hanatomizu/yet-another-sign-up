@@ -116,6 +116,14 @@ int Yasu::initConfigFiles(){
             qDebug() << "Error: log file cannot be created" << logFile.errorString();
         }
         logFile.close();
+    } else {
+        QFile logFile(logFilePath);
+        if(logFile.open(QIODevice::ReadWrite | QIODevice::Text)) {
+            logFile.write((QString("= ") + curtime.toString("yyyy-MM-dd") + QString(" yasu rechecked this file\n")).toUtf8());
+        } else {
+            qDebug() << "Error: log file cannot be rechecked" << logFile.errorString();
+        }
+        logFile.close();
     }
 
     if (!QFile::exists(dataFilePath)) {
@@ -140,9 +148,13 @@ int Yasu::initNamelist(){
     // file.close();
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)){
         QTextStream in(&file);
+        // take the place of zero.
+        extstunames.push_back("");
         for (Yasu::studentcnts = 1; !in.atEnd(); ++Yasu::studentcnts) {
             Yasu::stu[Yasu::studentcnts].id = Yasu::studentcnts;
             Yasu::stu[Yasu::studentcnts].name = in.readLine();
+            extstunames.push_back( Yasu::stu[Yasu::studentcnts].name );
+            nti[Yasu::stu[Yasu::studentcnts].name] = Yasu::studentcnts;
         }
         --Yasu::studentcnts;
         qDebug() << "Read namelist Finished\n";

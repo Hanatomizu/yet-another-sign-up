@@ -10,9 +10,11 @@
 #include <QIODevice>
 #include <QTextStream>
 #include <QDebug>
+#include <QTextEdit>
 #include <QCoreApplication>
 #include <vector>
 
+#include "signup.h"
 
 namespace Ui {
 class arbiter;
@@ -36,6 +38,8 @@ protected:
 
 private:
     Ui::arbiter *ui;
+    QString nameParser(QString);
+    QDateTime timeParser(QString);
 };
 
 #endif // ARBITER_H
