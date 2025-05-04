@@ -28,6 +28,19 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->AdminPanelEntrance, &QPushButton::released, this, &MainWindow::onAdminPanelClicked);
     connect(ui->Submit, &QPushButton::released, this, &MainWindow::onSubmitClicked);
     connect(ui->NumberInput, &QLineEdit::returnPressed, this, &MainWindow::onSubmitClicked);
+    connect(ui->pushButton_0, &QPushButton::released, this, &MainWindow::key0Pressed);
+    connect(ui->pushButton_1, &QPushButton::released, this, &MainWindow::key1Pressed);
+    connect(ui->pushButton_2, &QPushButton::released, this, &MainWindow::key2Pressed);
+    connect(ui->pushButton_3, &QPushButton::released, this, &MainWindow::key3Pressed);
+    connect(ui->pushButton_4, &QPushButton::released, this, &MainWindow::key4Pressed);
+    connect(ui->pushButton_5, &QPushButton::released, this, &MainWindow::key5Pressed);
+    connect(ui->pushButton_6, &QPushButton::released, this, &MainWindow::key6Pressed);
+    connect(ui->pushButton_7, &QPushButton::released, this, &MainWindow::key7Pressed);
+    connect(ui->pushButton_8, &QPushButton::released, this, &MainWindow::key8Pressed);
+    connect(ui->pushButton_9, &QPushButton::released, this, &MainWindow::key9Pressed);
+    connect(ui->pushButton_BackSpace, &QPushButton::released, this, &MainWindow::keyBackSpacePressed);
+    connect(ui->pushButton_Clear, &QPushButton::released, this, &MainWindow::keyClearPressed);
+
     yasu->initConfigFiles();
     yasu->initNamelist();
 }
@@ -74,6 +87,25 @@ void MainWindow::onArbiterClicked(){
 void MainWindow::arbiterClosed(){
     arbiterui = nullptr;
     this->setEnabled(1);
+}
+
+void MainWindow::key0Pressed(){ui->NumberInput->setText(ui->NumberInput->text() + "0");}
+void MainWindow::key1Pressed(){ui->NumberInput->setText(ui->NumberInput->text() + "1");}
+void MainWindow::key2Pressed(){ui->NumberInput->setText(ui->NumberInput->text() + "2");}
+void MainWindow::key3Pressed(){ui->NumberInput->setText(ui->NumberInput->text() + "3");}
+void MainWindow::key4Pressed(){ui->NumberInput->setText(ui->NumberInput->text() + "4");}
+void MainWindow::key5Pressed(){ui->NumberInput->setText(ui->NumberInput->text() + "5");}
+void MainWindow::key6Pressed(){ui->NumberInput->setText(ui->NumberInput->text() + "6");}
+void MainWindow::key7Pressed(){ui->NumberInput->setText(ui->NumberInput->text() + "7");}
+void MainWindow::key8Pressed(){ui->NumberInput->setText(ui->NumberInput->text() + "8");}
+void MainWindow::key9Pressed(){ui->NumberInput->setText(ui->NumberInput->text() + "9");}
+
+void MainWindow::keyBackSpacePressed() {
+    ui->NumberInput->backspace();
+}
+
+void MainWindow::keyClearPressed() {
+    ui->NumberInput->setText(QString(""));
 }
 
 MainWindow::~MainWindow()

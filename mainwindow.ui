@@ -185,7 +185,7 @@
      <rect>
       <x>20</x>
       <y>340</y>
-      <width>201</width>
+      <width>61</width>
       <height>26</height>
      </rect>
     </property>
@@ -204,6 +204,32 @@
     </property>
     <property name="text">
      <string>查看数据</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_BackSpace">
+    <property name="geometry">
+     <rect>
+      <x>90</x>
+      <y>340</y>
+      <width>61</width>
+      <height>26</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>删除</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_Clear">
+    <property name="geometry">
+     <rect>
+      <x>160</x>
+      <y>340</y>
+      <width>61</width>
+      <height>26</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>清空</string>
     </property>
    </widget>
   </widget>

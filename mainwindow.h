@@ -62,6 +62,19 @@ private slots:
     void onArbiterClicked();
     void arbiterClosed();
 
+    void key0Pressed();
+    void key1Pressed();
+    void key2Pressed();
+    void key3Pressed();
+    void key4Pressed();
+    void key5Pressed();
+    void key6Pressed();
+    void key7Pressed();
+    void key8Pressed();
+    void key9Pressed();
+    void keyBackSpacePressed();
+    void keyClearPressed();
+
 
 private:
     Ui::MainWindow *ui;
