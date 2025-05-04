@@ -28,6 +28,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->AdminPanelEntrance, &QPushButton::released, this, &MainWindow::onAdminPanelClicked);
     connect(ui->Submit, &QPushButton::released, this, &MainWindow::onSubmitClicked);
     connect(ui->NumberInput, &QLineEdit::returnPressed, this, &MainWindow::onSubmitClicked);
+    connect(ui->CheckData, &QPushButton::released, this, &MainWindow::onArbiterClicked);
     connect(ui->pushButton_0, &QPushButton::released, this, &MainWindow::key0Pressed);
     connect(ui->pushButton_1, &QPushButton::released, this, &MainWindow::key1Pressed);
     connect(ui->pushButton_2, &QPushButton::released, this, &MainWindow::key2Pressed);
