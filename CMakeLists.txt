@@ -45,6 +45,9 @@ else()
             LICENSE
             README.md
             Resources/icon.jpeg
+            resources.qrc
+            favicon.ico
+            icon.rc
         )
     endif()
 endif()

@@ -15,6 +15,26 @@ void arbiter::closeEvent(QCloseEvent *event) {
     QWidget::closeEvent(event);
 }
 
+void arbiter::checkStat(){
+    QString dt = ui->dateEdit->date().toString("yyyy-MM-dd");
+    QString logdir = QDir::cleanPath(QCoreApplication::applicationDirPath() +
+                                     QDir::separator() +
+                                     QString("logs") +
+                                     QDir::separator() +
+                                     dt +
+                                     QString(".log")
+    );
+
+    QFile tlog(logdir);
+
+
+    if (tlog.open(QIODevice::ReadOnly | QIODevice::Text)){
+        QTextStream in(&tlog);
+
+    }
+
+}
+
 arbiter::~arbiter()
 {
     delete ui;
