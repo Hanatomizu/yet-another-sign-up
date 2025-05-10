@@ -34,7 +34,7 @@ public:
 private:
     Ui::arbiter *ui;
     QString nameParser(QString);
-    QDateTime timeParser(QString);
+    QString timeParser(QString);
 };
 
 #endif // ARBITER_H

@@ -24,14 +24,12 @@ QString arbiter::nameParser(QString content) {
     return res;
 }
 
-QDateTime arbiter::timeParser(QString content) {
-    QDateTime res;
+QString arbiter::timeParser(QString content) {
     QString tmp;
-    for (int i = 0; content[i] != QString(","); ++i) {
+    for (int i = 11; content[i] != QString(","); ++i) {
         tmp += content[i];
     }
-    res = QDateTime::fromString(tmp, "yyyy-MM-dd hh-mm-ss");
-    return res;
+    return tmp;
 }
 
 void arbiter::checkStat(){
@@ -90,8 +88,7 @@ void arbiter::checkStat(){
             } else {
                 isSigned[nti[name]] = 1;
             }
-            QDateTime curt = arbiter::timeParser(content);
-            QString strcurt = curt.toString("hh-mm-ss");
+            QString strcurt = arbiter::timeParser(content);
             curwin[pteit]->setText(curwin[pteit]->toPlainText() + strcurt + QString(" ") + name + QString("\n"));
         }
         // night check;
