@@ -26,9 +26,11 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     connect(ui->AdminPanelEntrance, &QPushButton::released, this, &MainWindow::onAdminPanelClicked);
+    connect(ui->action_adminpanel, &QAction::triggered, this, &MainWindow::onAdminPanelClicked);
     connect(ui->Submit, &QPushButton::released, this, &MainWindow::onSubmitClicked);
     connect(ui->NumberInput, &QLineEdit::returnPressed, this, &MainWindow::onSubmitClicked);
     connect(ui->CheckData, &QPushButton::released, this, &MainWindow::onArbiterClicked);
+    connect(ui->action_chkdata, &QAction::triggered, this, &MainWindow::onArbiterClicked);
     connect(ui->pushButton_0, &QPushButton::released, this, &MainWindow::key0Pressed);
     connect(ui->pushButton_1, &QPushButton::released, this, &MainWindow::key1Pressed);
     connect(ui->pushButton_2, &QPushButton::released, this, &MainWindow::key2Pressed);
@@ -41,7 +43,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->pushButton_9, &QPushButton::released, this, &MainWindow::key9Pressed);
     connect(ui->pushButton_BackSpace, &QPushButton::released, this, &MainWindow::keyBackSpacePressed);
     connect(ui->pushButton_Clear, &QPushButton::released, this, &MainWindow::keyClearPressed);
-
+    connect(ui->action_about, &QAction::triggered, this, &MainWindow::showAbout);
+    connect(ui->action_Qt, &QAction::triggered, this, &QApplication::aboutQt);
+    connect(ui->action_quit, &QAction::triggered, this, &MainWindow::quitProgram);
     yasu->initConfigFiles();
     yasu->initNamelist();
 }
@@ -84,8 +88,6 @@ void MainWindow::onArbiterClicked(){
     ab->show();
 }
 
-
-
 void MainWindow::key0Pressed(){ui->NumberInput->setText(ui->NumberInput->text() + "0");}
 void MainWindow::key1Pressed(){ui->NumberInput->setText(ui->NumberInput->text() + "1");}
 void MainWindow::key2Pressed(){ui->NumberInput->setText(ui->NumberInput->text() + "2");}
@@ -103,6 +105,30 @@ void MainWindow::keyBackSpacePressed() {
 
 void MainWindow::keyClearPressed() {
     ui->NumberInput->setText(QString(""));
+}
+
+void MainWindow::showAbout() {
+    QMessageBox msgbox;
+    msgbox.setText(QString("Yet Another Sign Up System\n")+
+                   QString("Author: Hanatomizu\n") +
+                   QString("Version: Alpha 0.0.2\n") +
+                   QString("License: GPL v3\n") +
+                   QString("Framework: Qt\n"));
+    //msgbox.setFixedWidth(200);
+    msgbox.exec();
+}
+
+void MainWindow::closeEvent(QCloseEvent *event) {
+    QMessageBox::warning(this,
+                         QString("错误！"),
+                         QString("你好！为了防止误触关闭按钮，请使用“操作”->“退出程序”来退出本程序\n如果你不知道你在做什么，请最小化本程序而不是关闭本程序！"),
+                         QMessageBox::Ok,
+                         QMessageBox::Ok);
+    event->ignore();
+}
+
+void MainWindow::quitProgram() {
+    QApplication::quit();
 }
 
 MainWindow::~MainWindow()

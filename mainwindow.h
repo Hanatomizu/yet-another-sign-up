@@ -21,6 +21,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QApplication>
 #include <QTextEdit>
 #include <QLineEdit>
 #include <QString>
@@ -74,6 +75,11 @@ private slots:
     void keyBackSpacePressed();
     void keyClearPressed();
 
+    void showAbout();
+
+    void quitProgram();
+protected:
+    void closeEvent(QCloseEvent *event) override;
 
 private:
     Ui::MainWindow *ui;

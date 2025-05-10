@@ -239,11 +239,53 @@
      <x>0</x>
      <y>0</y>
      <width>339</width>
-     <height>23</height>
+     <height>24</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menu_operations">
+    <property name="title">
+     <string>操作</string>
+    </property>
+    <addaction name="action_chkdata"/>
+    <addaction name="action_adminpanel"/>
+    <addaction name="action_quit"/>
+   </widget>
+   <widget class="QMenu" name="menu_about">
+    <property name="title">
+     <string>关于</string>
+    </property>
+    <addaction name="action_Qt"/>
+    <addaction name="action_about"/>
+   </widget>
+   <addaction name="menu_operations"/>
+   <addaction name="menu_about"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <action name="action_chkdata">
+   <property name="text">
+    <string>查看数据</string>
+   </property>
+  </action>
+  <action name="action_adminpanel">
+   <property name="text">
+    <string>管理面板</string>
+   </property>
+  </action>
+  <action name="action_quit">
+   <property name="text">
+    <string>退出程序</string>
+   </property>
+  </action>
+  <action name="action_Qt">
+   <property name="text">
+    <string>关于 Qt</string>
+   </property>
+  </action>
+  <action name="action_about">
+   <property name="text">
+    <string>关于本程序</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>
