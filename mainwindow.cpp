@@ -49,18 +49,27 @@ MainWindow::MainWindow(QWidget *parent)
 void MainWindow::onSubmitClicked(){
     QString numb = ui->NumberInput->text();
     ui->NumberInput->setText("");
-
+    QMessageBox response;
     QPair<int, QString> status = yasu->sign_up(numb);
     if (status.first == 0){
         ui->Announcer->setText(status.second + " 已签到\n" + ui->Announcer->toPlainText());
         qDebug() << status.second << "Signed up successfully" << '\n';
+        response.setText("你好，" + status.second);
+        response.setIcon(QMessageBox::Information);
     } else if (status.first == 2) {
         ui->Announcer->setText("签到失败，你已签到\n" + ui->Announcer->toPlainText());
         qDebug() << "Failed to sign up, Error code: " << status.first << '\n';
+        response.setText("签到失败！");
+        response.setInformativeText("错误：你已签到");
+        response.setIcon(QMessageBox::Critical);
     } else{
         ui->Announcer->setText("签到失败，请检查学号输入是否正确\n" + ui->Announcer->toPlainText());
         qDebug() << "Failed to sign up, Error code: " << status.first << '\n';
+        response.setText("签到失败！");
+        response.setInformativeText("错误：number 是非法参数");
+        response.setIcon(QMessageBox::Critical);
     }
+    response.exec();
 }
 
 void MainWindow::onAdminPanelClicked(){
