@@ -45,6 +45,7 @@ else()
             LICENSE
             README.md
             favicon.ico
+            resourses.qrc
         )
     endif()
 endif()
