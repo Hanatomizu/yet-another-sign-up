@@ -111,7 +111,7 @@ void MainWindow::showAbout() {
     QMessageBox msgbox;
     msgbox.setText(QString("Yet Another Sign Up System\n")+
                    QString("Author: Hanatomizu\n") +
-                   QString("Version: Alpha 0.0.2\n") +
+                   QString("Version: Alpha 0.0.3\n") +
                    QString("License: GPL v3\n") +
                    QString("Framework: Qt\n"));
     //msgbox.setFixedWidth(200);
