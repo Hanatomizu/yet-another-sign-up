@@ -64,31 +64,18 @@ void MainWindow::onSubmitClicked(){
 }
 
 void MainWindow::onAdminPanelClicked(){
-    if (!apui) {
-        this->setEnabled(0);
-        apui = new AdminPanel();
-        connect(apui, &AdminPanel::closed, this, &MainWindow::AdminPanelClosed);
-        apui->show();
-    }
-}
-void MainWindow::AdminPanelClosed(){
-    apui = nullptr;
-    this->setEnabled(1);
+    AdminPanel *ap = new AdminPanel;
+    ap->setAttribute(Qt::WA_DeleteOnClose);
+    ap->show();
 }
 
 void MainWindow::onArbiterClicked(){
-    if (!arbiterui) {
-        this->setEnabled(0);
-        arbiterui = new arbiter();
-        connect(arbiterui, &arbiter::closed, this, &MainWindow::arbiterClosed);
-        arbiterui->show();
-    }
+    arbiter *ab = new arbiter;
+    ab->setAttribute(Qt::WA_DeleteOnClose);
+    ab->show();
 }
 
-void MainWindow::arbiterClosed(){
-    arbiterui = nullptr;
-    this->setEnabled(1);
-}
+
 
 void MainWindow::key0Pressed(){ui->NumberInput->setText(ui->NumberInput->text() + "0");}
 void MainWindow::key1Pressed(){ui->NumberInput->setText(ui->NumberInput->text() + "1");}

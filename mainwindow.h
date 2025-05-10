@@ -57,10 +57,8 @@ private slots:
     void onSubmitClicked();
 
     void onAdminPanelClicked();
-    void AdminPanelClosed();
 
     void onArbiterClicked();
-    void arbiterClosed();
 
     void key0Pressed();
     void key1Pressed();
@@ -78,8 +76,6 @@ private slots:
 
 private:
     Ui::MainWindow *ui;
-    AdminPanel *apui = nullptr;
-    arbiter *arbiterui = nullptr;
     Yasu *yasu = new Yasu;
 };
 #endif // MAINWINDOW_H

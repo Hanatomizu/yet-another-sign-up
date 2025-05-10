@@ -30,24 +30,14 @@ AdminPanel::AdminPanel(QWidget *parent)
     connect(ui->ButtonCheckStat, &QPushButton::released, this, &AdminPanel::onArbiterClicked);
 }
 
-void AdminPanel::closeEvent(QCloseEvent *event) {
-    emit AdminPanel::closed();
-    QWidget::closeEvent(event);
-}
 
 void AdminPanel::onArbiterClicked(){
-    if (!arbiterui) {
-        this->setEnabled(0);
-        arbiterui = new arbiter();
-        connect(arbiterui, &arbiter::closed, this, &AdminPanel::arbiterClosed);
-        arbiterui->show();
-    }
+    arbiter *ab = new arbiter;
+    ab->setAttribute(Qt::WA_DeleteOnClose);
+    ab->show();
 }
 
-void AdminPanel::arbiterClosed(){
-    arbiterui = nullptr;
-    this->setEnabled(1);
-}
+
 
 AdminPanel::~AdminPanel()
 {

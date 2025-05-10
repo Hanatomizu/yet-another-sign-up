@@ -14,16 +14,12 @@ arbiter::arbiter(QWidget *parent)
     connect(ui->chkdataButton, &QPushButton::pressed, this, &arbiter::checkStat);
 }
 
-void arbiter::closeEvent(QCloseEvent *event) {
-    emit arbiter::closed();
-    QWidget::closeEvent(event);
-}
 
 QString arbiter::nameParser(QString content) {
     QString res;
     int it = 21;
     while (content[it] != QString(",")) {
-        res += content[it];
+        res += content[it++];
     }
     return res;
 }
@@ -50,7 +46,7 @@ void arbiter::checkStat(){
 
     QFile tlog(logdir);
     int stucnt = extstunames.size()-1;
-    QPlainTextEdit *curwin[] = {ui->list1, ui->list2, ui->list3};
+    QTextEdit *curwin[] = {ui->list1, ui->list2, ui->list3};
     int pteit = 0;
     // std::vector<QString> notSigned;
     std::vector<QString> multiSigned;
@@ -64,20 +60,29 @@ void arbiter::checkStat(){
             }
             // 判断是否进入下一个时段
             if (content[0] == QString("=")) {
-                curwin[pteit]->appendPlainText(QString("\n未签到："));
+                if (pteit == 3) return;
+                curwin[pteit]->setText(curwin[pteit]->toPlainText() + QString("\n未签到：\n"));
                 for (int i = 1; i <= stucnt; ++i) {
                     if (!isSigned[i]) {
-                        curwin[pteit]->appendPlainText(extstunames[i]);
+                        curwin[pteit]->setText(curwin[pteit]->toPlainText() + extstunames[i] + QString("\n"));
                     }
                 }
 
-                curwin[pteit]->appendPlainText(QString("\n重复签到："));
+                curwin[pteit]->setText(curwin[pteit]->toPlainText() + QString("\n重复签到：\n"));
                 for (int i = 0; i < multiSigned.size(); ++i) {
-                    curwin[pteit]->appendPlainText(multiSigned[i]);
+                    curwin[pteit]->setText(curwin[pteit]->toPlainText() + multiSigned[i]);
                 }
                 // 进入下一个时间段
                 ++pteit;
+                while (!multiSigned.empty()) {
+                    multiSigned.pop_back();
+                }
+                for (int i = 0; i < isSigned.size(); ++i) {
+                    isSigned[i] = 0;
+                }
+                continue;
             }
+            if (content.size() < 20) return;
             QString name = arbiter::nameParser(content);
             // 如果重复签到
             if (isSigned[nti[name]]) {
@@ -87,7 +92,19 @@ void arbiter::checkStat(){
             }
             QDateTime curt = arbiter::timeParser(content);
             QString strcurt = curt.toString("hh-mm-ss");
-            curwin[pteit]->appendPlainText((strcurt + QString(" ") + name));
+            curwin[pteit]->setText(curwin[pteit]->toPlainText() + strcurt + QString(" ") + name + QString("\n"));
+        }
+        // night check;
+        curwin[pteit]->setText(curwin[pteit]->toPlainText() + QString("\n未签到：\n"));
+        for (int i = 1; i <= stucnt; ++i) {
+            if (!isSigned[i]) {
+                curwin[pteit]->setText(curwin[pteit]->toPlainText() + extstunames[i] + QString("\n"));
+            }
+        }
+
+        curwin[pteit]->setText(curwin[pteit]->toPlainText() + QString("\n重复签到：\n"));
+        for (int i = 0; i < multiSigned.size(); ++i) {
+            curwin[pteit]->setText(curwin[pteit]->toPlainText() + multiSigned[i]);
         }
         tlog.close();
     } else {

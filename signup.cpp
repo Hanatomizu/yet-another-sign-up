@@ -118,7 +118,7 @@ int Yasu::initConfigFiles(){
         logFile.close();
     } else {
         QFile logFile(logFilePath);
-        if(logFile.open(QIODevice::ReadWrite | QIODevice::Text)) {
+        if(logFile.open(QIODevice::ReadWrite | QIODevice::Text | QIODevice::Append)) {
             logFile.write((QString("= ") + curtime.toString("yyyy-MM-dd") + QString(" yasu rechecked this file\n")).toUtf8());
         } else {
             qDebug() << "Error: log file cannot be rechecked" << logFile.errorString();
@@ -155,6 +155,7 @@ int Yasu::initNamelist(){
             Yasu::stu[Yasu::studentcnts].name = in.readLine();
             extstunames.push_back( Yasu::stu[Yasu::studentcnts].name );
             nti[Yasu::stu[Yasu::studentcnts].name] = Yasu::studentcnts;
+            Yasu::isSigned[Yasu::studentcnts] = 0;
         }
         --Yasu::studentcnts;
         qDebug() << "Read namelist Finished\n";

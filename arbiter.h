@@ -30,11 +30,6 @@ public:
 
     void checkStat();
 
-signals:
-    void closed();
-
-protected:
-    void closeEvent(QCloseEvent *event) override;
 
 private:
     Ui::arbiter *ui;

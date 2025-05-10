@@ -13,7 +13,7 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <widget class="QPlainTextEdit" name="list1">
+  <widget class="QTextEdit" name="list1">
    <property name="geometry">
     <rect>
      <x>50</x>
@@ -23,7 +23,7 @@
     </rect>
    </property>
   </widget>
-  <widget class="QPlainTextEdit" name="list2">
+  <widget class="QTextEdit" name="list2">
    <property name="geometry">
     <rect>
      <x>240</x>
@@ -33,7 +33,7 @@
     </rect>
    </property>
   </widget>
-  <widget class="QPlainTextEdit" name="list3">
+  <widget class="QTextEdit" name="list3">
    <property name="geometry">
     <rect>
      <x>430</x>

@@ -38,20 +38,13 @@ public:
     explicit AdminPanel(QWidget *parent = nullptr);
     ~AdminPanel();
 
-signals:
-    void closed();
 
 private slots:
     void onArbiterClicked();
-    void arbiterClosed();
 
-
-protected:
-    void closeEvent(QCloseEvent *event) override;
 
 private:
     Ui::AdminPanel *ui;
-    arbiter *arbiterui = nullptr;
 };
 
 #endif // ADMINPANEL_H
