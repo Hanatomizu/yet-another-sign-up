@@ -84,5 +84,6 @@ protected:
 private:
     Ui::MainWindow *ui;
     Yasu *yasu = new Yasu;
+    int permitClose = 0;
 };
 #endif // MAINWINDOW_H

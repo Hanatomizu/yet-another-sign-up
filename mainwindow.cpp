@@ -119,15 +119,20 @@ void MainWindow::showAbout() {
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
-    QMessageBox::warning(this,
-                         QString("错误！"),
-                         QString("你好！为了防止误触关闭按钮，请使用“操作”->“退出程序”来退出本程序\n如果你不知道你在做什么，请最小化本程序而不是关闭本程序！"),
-                         QMessageBox::Ok,
-                         QMessageBox::Ok);
-    event->ignore();
+    if (permitClose) {
+        event->accept();
+    }else {
+        QMessageBox::warning(this,
+                             QString("错误！"),
+                             QString("你好！为了防止误触关闭按钮，请使用“操作”->“退出程序”来退出本程序\n如果你不知道你在做什么，请最小化本程序而不是关闭本程序！"),
+                             QMessageBox::Ok,
+                             QMessageBox::Ok);
+        event->ignore();
+    }
 }
 
 void MainWindow::quitProgram() {
+    permitClose = 1;
     QApplication::quit();
 }
 
