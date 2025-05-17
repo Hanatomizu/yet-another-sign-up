@@ -45,6 +45,9 @@ void arbiter::checkStat(){
     QFile tlog(logdir);
     int stucnt = extstunames.size()-1;
     QTextEdit *curwin[] = {ui->list1, ui->list2, ui->list3};
+    for (int i = 0; i < 3; ++i) {
+        curwin[i]->setText(QString());
+    }
     int pteit = 0;
     // std::vector<QString> notSigned;
     std::vector<QString> multiSigned;
@@ -52,13 +55,13 @@ void arbiter::checkStat(){
     if (tlog.open(QIODevice::ReadOnly | QIODevice::Text)){
         QTextStream in(&tlog);
         while(!in.atEnd()) {
+            if (pteit == 3) return;
             QString content = in.readLine();
             if (content[0] == QString("-")) {
                 continue;
             }
             // 判断是否进入下一个时段
             if (content[0] == QString("=")) {
-                if (pteit == 3) return;
                 curwin[pteit]->setText(curwin[pteit]->toPlainText() + QString("\n未签到：\n"));
                 for (int i = 1; i <= stucnt; ++i) {
                     if (!isSigned[i]) {
@@ -87,9 +90,9 @@ void arbiter::checkStat(){
                 multiSigned.push_back(name);
             } else {
                 isSigned[nti[name]] = 1;
+                QString strcurt = arbiter::timeParser(content);
+                curwin[pteit]->setText(curwin[pteit]->toPlainText() + strcurt + QString(" ") + name + QString("\n"));
             }
-            QString strcurt = arbiter::timeParser(content);
-            curwin[pteit]->setText(curwin[pteit]->toPlainText() + strcurt + QString(" ") + name + QString("\n"));
         }
         // night check;
         curwin[pteit]->setText(curwin[pteit]->toPlainText() + QString("\n未签到：\n"));
