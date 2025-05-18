@@ -117,6 +117,7 @@ void MainWindow::keyClearPressed() {
 
 void MainWindow::showAbout() {
     QMessageBox msgbox;
+    msgbox.setWindowFlag(Qt::WindowStaysOnTopHint);
     msgbox.setText(QString("Yet Another Sign Up System\n")+
                    QString("Author: Hanatomizu\n") +
                    QString("Version: Alpha 0.0.5\n") +
