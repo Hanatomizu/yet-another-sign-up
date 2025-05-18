@@ -85,12 +85,14 @@ void MainWindow::onSubmitClicked(){
 void MainWindow::onAdminPanelClicked(){
     AdminPanel *ap = new AdminPanel;
     ap->setAttribute(Qt::WA_DeleteOnClose);
+    ap->setWindowFlag(Qt::WindowStaysOnTopHint);
     ap->show();
 }
 
 void MainWindow::onArbiterClicked(){
     arbiter *ab = new arbiter;
     ab->setAttribute(Qt::WA_DeleteOnClose);
+    ab->setWindowFlag(Qt::WindowStaysOnTopHint);
     ab->show();
 }
 

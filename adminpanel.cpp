@@ -34,6 +34,7 @@ AdminPanel::AdminPanel(QWidget *parent)
 void AdminPanel::onArbiterClicked(){
     arbiter *ab = new arbiter;
     ab->setAttribute(Qt::WA_DeleteOnClose);
+    ab->setWindowFlag(Qt::WindowStaysOnTopHint);
     ab->show();
 }
 
