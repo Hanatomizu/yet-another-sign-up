@@ -25,6 +25,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    setWindowFlag(Qt::WindowStaysOnTopHint);
     connect(ui->AdminPanelEntrance, &QPushButton::released, this, &MainWindow::onAdminPanelClicked);
     connect(ui->action_adminpanel, &QAction::triggered, this, &MainWindow::onAdminPanelClicked);
     connect(ui->Submit, &QPushButton::released, this, &MainWindow::onSubmitClicked);
@@ -54,6 +55,8 @@ void MainWindow::onSubmitClicked(){
     QString numb = ui->NumberInput->text();
     ui->NumberInput->setText("");
     QMessageBox response;
+    response.setWindowFlag(Qt::WindowStaysOnTopHint);
+    response.setWindowIcon(QIcon(":/resources/favicon.ico"));
     QPair<int, QString> status = yasu->sign_up(numb);
     if (status.first == 0){
         ui->Announcer->setText(status.second + " 已签到\n" + ui->Announcer->toPlainText());
