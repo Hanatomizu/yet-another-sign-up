@@ -71,7 +71,7 @@ void arbiter::checkStat(){
 
                 curwin[pteit]->setText(curwin[pteit]->toPlainText() + QString("\n重复签到：\n"));
                 for (int i = 0; i < multiSigned.size(); ++i) {
-                    curwin[pteit]->setText(curwin[pteit]->toPlainText() + multiSigned[i]);
+                    curwin[pteit]->setText(curwin[pteit]->toPlainText() + multiSigned[i] + QString("\n"));
                 }
                 // 进入下一个时间段
                 ++pteit;
@@ -104,7 +104,7 @@ void arbiter::checkStat(){
 
         curwin[pteit]->setText(curwin[pteit]->toPlainText() + QString("\n重复签到：\n"));
         for (int i = 0; i < multiSigned.size(); ++i) {
-            curwin[pteit]->setText(curwin[pteit]->toPlainText() + multiSigned[i]);
+            curwin[pteit]->setText(curwin[pteit]->toPlainText() + multiSigned[i] + QString("\n"));
         }
         tlog.close();
     } else {
