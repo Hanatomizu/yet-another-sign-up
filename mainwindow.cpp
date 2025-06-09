@@ -56,7 +56,7 @@ void MainWindow::onSubmitClicked(){
     ui->NumberInput->setText("");
     QMessageBox response;
     response.setWindowFlag(Qt::WindowStaysOnTopHint);
-    response.setWindowIcon(QIcon(":/resources/favicon.ico"));
+    response.setWindowIcon(QIcon(":/resources/icons/favicon.ico"));
     QPair<int, QString> status = yasu->sign_up(numb);
     if (status.first == 0){
         ui->Announcer->setText(status.second + " 已签到\n" + ui->Announcer->toPlainText());
