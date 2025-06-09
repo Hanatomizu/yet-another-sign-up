@@ -118,6 +118,8 @@ void MainWindow::keyClearPressed() {
 void MainWindow::showAbout() {
     QMessageBox msgbox;
     msgbox.setWindowFlag(Qt::WindowStaysOnTopHint);
+    msgbox.setWindowTitle(QString("About Yasu"));
+    msgbox.setWindowIcon(QIcon(":/resources/icons/favicon.ico"));
     msgbox.setText(QString("Yet Another Sign Up System\n")+
                    QString("Author: Hanatomizu\n") +
                    QString("Version: Alpha 0.0.5\n") +
