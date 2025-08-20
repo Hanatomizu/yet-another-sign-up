@@ -47,8 +47,15 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->action_about, &QAction::triggered, this, &MainWindow::showAbout);
     connect(ui->action_Qt, &QAction::triggered, this, &QApplication::aboutQt);
     connect(ui->action_quit, &QAction::triggered, this, &MainWindow::quitProgram);
+    connect(ui->FaceRecognitionButton, &QPushButton::released, this, &MainWindow::onFaceRecognitionClicked);
+    
     yasu->initConfigFiles();
     yasu->initNamelist();
+    
+    // Initialize face recognition system
+    faceRecognition = new FaceRecognition(this);
+    faceRecognitionTimer = new QTimer(this);
+    connect(faceRecognitionTimer, &QTimer::timeout, this, &MainWindow::processFaceRecognition);
 }
 
 void MainWindow::onSubmitClicked(){
@@ -94,6 +101,52 @@ void MainWindow::onArbiterClicked(){
     ab->setAttribute(Qt::WA_DeleteOnClose);
     ab->setWindowFlag(Qt::WindowStaysOnTopHint);
     ab->show();
+}
+
+void MainWindow::onFaceRecognitionClicked() {
+    if (!faceRecognition->initializeCamera()) {
+        QMessageBox::warning(this, "摄像头错误", "无法打开摄像头，请检查摄像头是否可用。");
+        return;
+    }
+    
+    // Train the model if not already trained
+    if (!faceRecognition->isModelTrained()) {
+        faceRecognition->trainModel();
+    }
+    
+    // Start the face recognition timer
+    faceRecognitionTimer->start(100); // Process every 100ms
+    ui->FaceRecognitionButton->setText("识别中...");
+    ui->FaceRecognitionButton->setEnabled(false);
+}
+
+void MainWindow::processFaceRecognition() {
+    int recognizedId = faceRecognition->recognizeFace();
+    
+    if (recognizedId != -1) {
+        // Stop the timer
+        faceRecognitionTimer->stop();
+        
+        // Process the recognized ID
+        QPair<int, QString> status = yasu->sign_up(QString::number(recognizedId));
+
+        if (status.first == 0) {
+            ui->Announcer->setText(status.second + " 已通过人脸识别签到\n" + ui->Announcer->toPlainText());
+
+        } else if (status.first == 2) {
+            ui->Announcer->setText("签到失败，" + status.second + " 已签到\n" + ui->Announcer->toPlainText());
+        } else {
+            ui->Announcer->setText("签到失败，请检查人脸识别结果\n" + ui->Announcer->toPlainText());
+        }
+        
+
+        // Reset button state
+        ui->FaceRecognitionButton->setText("人脸识别签到");
+        ui->FaceRecognitionButton->setEnabled(true);
+        
+        // Release camera
+        faceRecognition->releaseCamera();
+    }
 }
 
 void MainWindow::key0Pressed(){ui->NumberInput->setText(ui->NumberInput->text() + "0");}
@@ -147,8 +200,9 @@ void MainWindow::quitProgram() {
     QApplication::quit();
 }
 
-MainWindow::~MainWindow()
-{
+MainWindow::~MainWindow() {
     delete ui;
     delete yasu;
+    delete faceRecognition;
+    delete faceRecognitionTimer;
 }

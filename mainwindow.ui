@@ -210,6 +210,19 @@
      <string>查看数据</string>
     </property>
    </widget>
+   <widget class="QPushButton" name="FaceRecognitionButton">
+    <property name="geometry">
+     <rect>
+      <x>230</x>
+      <y>210</y>
+      <width>91</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>人脸识别签到</string>
+    </property>
+   </widget>
    <widget class="QPushButton" name="pushButton_BackSpace">
     <property name="geometry">
      <rect>
