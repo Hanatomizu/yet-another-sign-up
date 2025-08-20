@@ -2,6 +2,18 @@
 
 A new sign up system for class managements
 
+## Installation
+TODO
+
+## Usage
+TODO
+
+## Acknowledgements
+
+- [Qt](https://www.qt.io) 
+- [OpenCV](https://github.com/opencv/opencv) 
+- [OpenCV Contrib](https://github.com/opencv/opencv_contrib)
+
 ## License
 
 ```
@@ -21,9 +33,3 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ```
-
----
-
-## Acknowledgements
-
-- [Qt](https://www.qt.io)
