@@ -31,11 +31,13 @@
 #include <QPair>
 #include <QMessageBox>
 #include <QDebug>
+#include <QTimer>
 
 
 #include "adminpanel.h"
 #include "signup.h"
 #include "arbiter.h"
+#include "facerecognition.h"
 
 
 QT_BEGIN_NAMESPACE
@@ -62,6 +64,10 @@ private slots:
 
     void onArbiterClicked();
 
+    void onFaceRecognitionClicked();
+
+    void processFaceRecognition();
+
     void key0Pressed();
     void key1Pressed();
     void key2Pressed();
@@ -84,6 +90,8 @@ protected:
 private:
     Ui::MainWindow *ui;
     Yasu *yasu = new Yasu;
+    FaceRecognition *faceRecognition;
+    QTimer *faceRecognitionTimer;
     int permitClose = 0;
 };
 #endif // MAINWINDOW_H
