@@ -19,10 +19,30 @@
 #include "mainwindow.h"
 
 #include <QApplication>
+#include <QLocalServer>
+#include <QLocalSocket>
+#include <QMessageBox>
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+
+    QString hostname = QString("Hanatomizu_Yetanothersignup");
+
+    QLocalSocket socket;
+    socket.connectToServer(hostname);
+
+    if (socket.waitForConnected(500)) {
+        QMessageBox::warning(nullptr, "Fatal", "初始化失败，已有程序正在运行。");
+        return 0;
+    }
+
+    QLocalServer server;
+    if (!server.listen(hostname)) {
+        QMessageBox::warning(nullptr, "Fatal", "初始化失败，无法创建本地服务器。\n请联系系统管理员。");
+        return 0;
+    }
+
     MainWindow w;
     w.show();
     return a.exec();
