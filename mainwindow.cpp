@@ -122,7 +122,7 @@ void MainWindow::showAbout() {
     msgbox.setWindowIcon(QIcon(":/resources/icons/favicon.ico"));
     msgbox.setText(QString("Yet Another Sign Up System\n")+
                    QString("Author: Hanatomizu\n") +
-                   QString("Version: Alpha 0.0.5\n") +
+                   QString("Version: Alpha 0.0.6\n") +
                    QString("License: GPL v3\n") +
                    QString("Framework: Qt\n"));
     //msgbox.setFixedWidth(200);
