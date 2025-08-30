@@ -18,6 +18,8 @@ message(STATUS "Include dirs: ${OpenCV_INCLUDE_DIRS}")
 message(STATUS "Libraries: ${OpenCV_LIBS}")
 include_directories(${OpenCV_INCLUDE_DIRS})
 
+
+
 set(PROJECT_SOURCES
         main.cpp
         mainwindow.cpp
@@ -29,6 +31,15 @@ set(PROJECT_SOURCES
         resourses.qrc
         LICENSE
 )
+
+# Load application icon
+if(WIN32)
+    set(ICON_PATH "${CMAKE_CURRENT_SOURCE_DIR}/favicon.ico")
+
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/appicon.rc.in ${CMAKE_CURRENT_BINARY_DIR}/appicon.rc @ONLY)
+
+    list(APPEND PROJECT_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/appicon.rc)
+endif()
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(yet-another-sign-up
