@@ -28,6 +28,7 @@ set(PROJECT_SOURCES
         signup.cpp signup.h
         adminpanel.h adminpanel.cpp adminpanel.ui
         arbiter.h arbiter.cpp arbiter.ui
+        facerecognition.cpp facerecognition.h
         resourses.qrc
         LICENSE
 )
