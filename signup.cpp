@@ -19,6 +19,24 @@
 
 
 #include "signup.h"
+#include "databasemanager.h"
+
+Yasu::Yasu() : m_dbManager(new DatabaseManager())
+{
+    // Initialize the database
+    if (!m_dbManager->initializeDatabase()) {
+        qDebug() << "Failed to initialize database:" << m_dbManager->lastError();
+    }
+    
+    if (!m_dbManager->createTables()) {
+        qDebug() << "Failed to create database tables:" << m_dbManager->lastError();
+    }
+}
+
+Yasu::~Yasu()
+{
+    // DatabaseManager is automatically deleted as it's a QObject child
+}
 
 namespace SignUpAlgorithms{
 int qstringToInt(QString _s) {
@@ -156,6 +174,11 @@ int Yasu::initNamelist(){
             extstunames.push_back( Yasu::stu[Yasu::studentcnts].name );
             nti[Yasu::stu[Yasu::studentcnts].name] = Yasu::studentcnts;
             Yasu::isSigned[Yasu::studentcnts] = 0;
+            
+            // Add student to database
+            if (!m_dbManager->addStudent(Yasu::studentcnts, Yasu::stu[Yasu::studentcnts].name)) {
+                qDebug() << "Failed to add student to database:" << m_dbManager->lastError();
+            }
         }
         --Yasu::studentcnts;
         qDebug() << "Read namelist Finished\n";
@@ -195,12 +218,20 @@ QPair<int, QString> Yasu::sign_up(QString s) {
 
     QDateTime curtime = QDateTime::currentDateTime();
 
-    if (Yasu::isSigned[number]) {
+    // Check if student is already signed up today in the database
+    if (m_dbManager->isStudentSignedUp(number, curtime.date())) {
         writeLog((curtime.toString("yyyy.MM.dd hh:mm:ss") + ", " + stu[number].name + ", Resigned\n"));
         return qMakePair(2, QString());
-    } else {
-        isSigned[number] = 1;
     }
+
+    // Record signup in database
+    if (!m_dbManager->recordSignUp(number, stu[number].name, curtime)) {
+        qDebug() << "Failed to record signup in database:" << m_dbManager->lastError();
+        // We'll continue with the file-based logging even if database fails
+    }
+
+    // Update in-memory status
+    isSigned[number] = 1;
 
     Yasu::signups.push_back(
         Yasu::SignUpTime(

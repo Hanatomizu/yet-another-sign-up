@@ -1,5 +1,9 @@
 #include "arbiter.h"
 #include "ui_arbiter.h"
+#include "databasemanager.h"
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QSqlError>
 
 std::vector<QString> extstunames;
 std::map<QString, int> nti;
@@ -33,84 +37,62 @@ QString arbiter::timeParser(QString content) {
 }
 
 void arbiter::checkStat(){
-    QString dt = ui->dateEdit->date().toString("yyyy-MM-dd");
-    QString logdir = QDir::cleanPath(QCoreApplication::applicationDirPath() +
-                                     QDir::separator() +
-                                     QString("logs") +
-                                     QDir::separator() +
-                                     dt +
-                                     QString(".log")
-    );
-
-    QFile tlog(logdir);
-    int stucnt = extstunames.size()-1;
+    // Initialize database manager
+    DatabaseManager dbManager;
+    if (!dbManager.initializeDatabase()) {
+        qDebug() << "Failed to initialize database in arbiter:" << dbManager.lastError();
+        return;
+    }
+    
+    QDate selectedDate = ui->dateEdit->date();
+    
     QTextEdit *curwin[] = {ui->list1, ui->list2, ui->list3};
+    QString periodNames[] = {"早上", "下午", "晚上"};
+    
+    // Clear all windows
     for (int i = 0; i < 3; ++i) {
         curwin[i]->setText(QString());
     }
-    int pteit = 0;
-    // std::vector<QString> notSigned;
-    std::vector<QString> multiSigned;
-    std::vector<bool> isSigned(stucnt+1);
-    if (tlog.open(QIODevice::ReadOnly | QIODevice::Text)){
-        QTextStream in(&tlog);
-        while(!in.atEnd()) {
-            if (pteit == 3) return;
-            QString content = in.readLine();
-            if (content[0] == QString("-")) {
-                continue;
-            }
-            // 判断是否进入下一个时段
-            if (content[0] == QString("=")) {
-                curwin[pteit]->setText(curwin[pteit]->toPlainText() + QString("\n未签到：\n"));
-                for (int i = 1; i <= stucnt; ++i) {
-                    if (!isSigned[i]) {
-                        curwin[pteit]->setText(curwin[pteit]->toPlainText() + extstunames[i] + QString("\n"));
-                    }
-                }
-
-                curwin[pteit]->setText(curwin[pteit]->toPlainText() + QString("\n重复签到：\n"));
-                for (int i = 0; i < multiSigned.size(); ++i) {
-                    curwin[pteit]->setText(curwin[pteit]->toPlainText() + multiSigned[i] + QString("\n"));
-                }
-                // 进入下一个时间段
-                ++pteit;
-                while (!multiSigned.empty()) {
-                    multiSigned.pop_back();
-                }
-                for (int i = 0; i < isSigned.size(); ++i) {
-                    isSigned[i] = 0;
-                }
-                continue;
-            }
-            if (content.size() < 20) return;
-            QString name = arbiter::nameParser(content);
-            // 如果重复签到
-            if (isSigned[nti[name]]) {
-                multiSigned.push_back(name);
-            } else {
-                isSigned[nti[name]] = 1;
-                QString strcurt = arbiter::timeParser(content);
-                curwin[pteit]->setText(curwin[pteit]->toPlainText() + strcurt + QString(" ") + name + QString("\n"));
-            }
-        }
-        // night check;
-        curwin[pteit]->setText(curwin[pteit]->toPlainText() + QString("\n未签到：\n"));
-        for (int i = 1; i <= stucnt; ++i) {
-            if (!isSigned[i]) {
-                curwin[pteit]->setText(curwin[pteit]->toPlainText() + extstunames[i] + QString("\n"));
-            }
-        }
-
-        curwin[pteit]->setText(curwin[pteit]->toPlainText() + QString("\n重复签到：\n"));
-        for (int i = 0; i < multiSigned.size(); ++i) {
-            curwin[pteit]->setText(curwin[pteit]->toPlainText() + multiSigned[i] + QString("\n"));
-        }
-        tlog.close();
-    } else {
-        qDebug() << "Failed to open log file:" << tlog.errorString();
+    
+    // For tracking which students signed up in each period
+    std::vector<bool> signedUp[3];
+    int stucnt = extstunames.size() - 1;
+    
+    for (int p = 0; p < 3; ++p) {
+        signedUp[p].resize(stucnt + 1, false);
     }
-
+    
+    // Get and display signups for each period
+    for (int period = 0; period < 3; ++period) {
+        QVector<QPair<QString, QDateTime>> signups = dbManager.getSignUpsForDateAndPeriod(selectedDate, period);
+        
+        // Display signups for this period
+        curwin[period]->setText(periodNames[period] + "签到：\n");
+        for (const auto& signup : signups) {
+            QString name = signup.first;
+            QDateTime timestamp = signup.second;
+            curwin[period]->setText(curwin[period]->toPlainText() + timestamp.toString("hh:mm:ss") + " " + name + "\n");
+            
+            // Mark this student as signed up in this period
+            if (nti.find(name) != nti.end()) {
+                signedUp[period][nti[name]] = true;
+            }
+        }
+        
+        // Find students who didn't sign up in this period
+        QVector<QString> notSigned;
+        for (int i = 1; i <= stucnt; ++i) {
+            if (!signedUp[period][i]) {
+                notSigned.append(extstunames[i]);
+            }
+        }
+        
+        // Display students who didn't sign up in this period
+        curwin[period]->setText(curwin[period]->toPlainText() + "\n未签到：\n");
+        for (const QString& name : notSigned) {
+            curwin[period]->setText(curwin[period]->toPlainText() + name + "\n");
+        }
+    }
 }
 
 arbiter::~arbiter()

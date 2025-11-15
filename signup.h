@@ -30,6 +30,8 @@
 #include <QDateTime>
 #include <QCoreApplication>
 
+class DatabaseManager;
+
 #ifndef SIGNUP_H
 #define SIGNUP_H
 
@@ -62,6 +64,8 @@ private:
     Student stu[100];
     bool isSigned[100];
 
+    // Database manager
+    DatabaseManager* m_dbManager;
 
     // Storages
     QVector<SignUpTime> signups;
@@ -72,6 +76,8 @@ private:
     int writeLog(QString);
 
 public:
+    Yasu();
+    ~Yasu();
     int initConfigFiles();
     // init QString Names
     int initNamelist();

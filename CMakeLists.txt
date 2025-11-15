@@ -9,8 +9,8 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Sql)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network Sql)
 
 find_package(OpenCV REQUIRED)
 message(STATUS "OpenCV found: ${OpenCV_VERSION}")
@@ -28,6 +28,7 @@ set(PROJECT_SOURCES
         signup.cpp signup.h
         adminpanel.h adminpanel.cpp adminpanel.ui
         arbiter.h arbiter.cpp arbiter.ui
+        databasemanager.h databasemanager.cpp
         resourses.qrc
         LICENSE
 )
@@ -69,7 +70,7 @@ else()
 endif()
 
 target_link_libraries(yet-another-sign-up PRIVATE ${OpenCV_LIBS})
-target_link_libraries(yet-another-sign-up PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network)
+target_link_libraries(yet-another-sign-up PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network Qt${QT_VERSION_MAJOR}::Sql)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
