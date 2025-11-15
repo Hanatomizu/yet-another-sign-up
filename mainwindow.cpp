@@ -55,8 +55,9 @@ MainWindow::MainWindow(QWidget *parent)
 void MainWindow::onSubmitClicked(){
     QString numb = ui->NumberInput->text();
     ui->NumberInput->setText("");
-    QMessageBox response;
+    QMessageBox response(this);
     response.setWindowFlag(Qt::WindowStaysOnTopHint);
+    // response.move(this->pos() + QPoint((this->width()-response.width())>>1, (this->height()-response.height())>>1));
     response.setWindowIcon(QIcon(":/resources/icons/favicon.ico"));
     QPair<int, QString> status = yasu->sign_up(numb);
     if (status.first == 0){
