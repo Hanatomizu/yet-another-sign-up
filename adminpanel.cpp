@@ -19,6 +19,8 @@
 
 #include "adminpanel.h"
 #include "ui_adminpanel.h"
+#include "exportdialog.h"
+#include "deadlinedialog.h"
 
 AdminPanel::AdminPanel(QWidget *parent)
     : QWidget(parent)
@@ -28,6 +30,18 @@ AdminPanel::AdminPanel(QWidget *parent)
 
     connect(ui->ButtonClose, &QPushButton::released, this, &AdminPanel::close);
     connect(ui->ButtonCheckStat, &QPushButton::released, this, &AdminPanel::onArbiterClicked);
+
+    // Add "导出数据" button programmatically below the existing stat button
+    buttonExportData = new QPushButton(QString("导出数据"), this);
+    buttonExportData->setGeometry(40, 70, 130, 28);
+    connect(buttonExportData, &QPushButton::released,
+            this, &AdminPanel::onExportClicked);
+
+    // Add "设置迟到时间" button below the export button
+    buttonSetDeadline = new QPushButton(QString("设置迟到时间"), this);
+    buttonSetDeadline->setGeometry(40, 110, 130, 28);
+    connect(buttonSetDeadline, &QPushButton::released,
+            this, &AdminPanel::onDeadlineClicked);
 }
 
 
@@ -38,6 +52,21 @@ void AdminPanel::onArbiterClicked(){
     ab->show();
 }
 
+void AdminPanel::onExportClicked()
+{
+    ExportDialog *dlg = new ExportDialog;
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setWindowFlag(Qt::WindowStaysOnTopHint);
+    dlg->show();
+}
+
+void AdminPanel::onDeadlineClicked()
+{
+    DeadlineDialog *dlg = new DeadlineDialog;
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setWindowFlag(Qt::WindowStaysOnTopHint);
+    dlg->show();
+}
 
 
 AdminPanel::~AdminPanel()

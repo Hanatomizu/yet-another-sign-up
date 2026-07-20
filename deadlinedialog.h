@@ -17,39 +17,44 @@
  *
  */
 
-
-#ifndef ADMINPANEL_H
-#define ADMINPANEL_H
+#ifndef DEADLINEDIALOG_H
+#define DEADLINEDIALOG_H
 
 #include <QWidget>
-#include <QCloseEvent>
+#include <QTimeEdit>
 #include <QPushButton>
 
-#include "arbiter.h"
-
-namespace Ui {
-class AdminPanel;
-}
-
-class AdminPanel : public QWidget
+/**
+ * @brief Dialog for configuring sign-in deadlines and period boundaries.
+ *
+ * Provides five QTimeEdit controls:
+ * - Morning deadline (早签截止)
+ * - Morning→Noon split (早/午分界)
+ * - Noon deadline (午签截止)
+ * - Noon→Evening split (午/晚分界)
+ * - Evening deadline (晚签截止)
+ *
+ * Values are saved to config.toml via ConfigManager.
+ */
+class DeadlineDialog : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit AdminPanel(QWidget *parent = nullptr);
-    ~AdminPanel();
-
+    explicit DeadlineDialog(QWidget *parent = nullptr);
+    ~DeadlineDialog();
 
 private slots:
-    void onArbiterClicked();
-    void onExportClicked();
-    void onDeadlineClicked();
-
+    void onSaveClicked();
 
 private:
-    Ui::AdminPanel *ui;
-    QPushButton *buttonExportData;
-    QPushButton *buttonSetDeadline;
+    QTimeEdit *morningDeadlineEdit;
+    QTimeEdit *noonDeadlineEdit;
+    QTimeEdit *eveningDeadlineEdit;
+    QTimeEdit *morningNoonSplitEdit;
+    QTimeEdit *noonEveningSplitEdit;
+
+    void loadCurrentConfig();
 };
 
-#endif // ADMINPANEL_H
+#endif // DEADLINEDIALOG_H
