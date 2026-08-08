@@ -60,7 +60,8 @@ int Yasu::initConfigFiles(){
                         QDir::separator() +
                         QString("data") +
                         QDir::separator() +
-                        curtime.toString("yyyy-MM-dd.data");
+                        curtime.toString("yyyy-MM-dd") +
+                        QString(".data");
 
     QString logDirPath =
                         QCoreApplication::applicationDirPath() +
