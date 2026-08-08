@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(yet-another-sign-up VERSION 0.1 LANGUAGES CXX)
+project(yet-another-sign-up VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
@@ -12,13 +12,25 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network)
 
-find_package(OpenCV REQUIRED)
-message(STATUS "OpenCV found: ${OpenCV_VERSION}")
-message(STATUS "Include dirs: ${OpenCV_INCLUDE_DIRS}")
-message(STATUS "Libraries: ${OpenCV_LIBS}")
-include_directories(${OpenCV_INCLUDE_DIRS})
+# FetchContent for third-party dependencies
+include(FetchContent)
 
+# QXlsx - Excel file generation
+FetchContent_Declare(
+    QXlsx
+    GIT_REPOSITORY https://github.com/QtExcel/QXlsx.git
+    GIT_TAG master
+    SOURCE_SUBDIR QXlsx
+)
+FetchContent_MakeAvailable(QXlsx)
 
+# toml++ - TOML config file parsing (header-only)
+FetchContent_Declare(
+    tomlplusplus
+    GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
+    GIT_TAG master
+)
+FetchContent_MakeAvailable(tomlplusplus)
 
 set(PROJECT_SOURCES
         main.cpp
@@ -28,6 +40,9 @@ set(PROJECT_SOURCES
         signup.cpp signup.h
         adminpanel.h adminpanel.cpp adminpanel.ui
         arbiter.h arbiter.cpp arbiter.ui
+        configmanager.h configmanager.cpp
+        exportdialog.h exportdialog.cpp
+        deadlinedialog.h deadlinedialog.cpp
         resourses.qrc
         LICENSE
 )
@@ -68,8 +83,9 @@ else()
     endif()
 endif()
 
-target_link_libraries(yet-another-sign-up PRIVATE ${OpenCV_LIBS})
 target_link_libraries(yet-another-sign-up PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network)
+target_link_libraries(yet-another-sign-up PRIVATE QXlsx)
+target_link_libraries(yet-another-sign-up PRIVATE tomlplusplus::tomlplusplus)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an

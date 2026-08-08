@@ -36,45 +36,19 @@ int qstringToInt(QString _s) {
 }
 
 int Yasu::initConfigFiles(){
-    Yasu::mainConfigDirectory = QDir::cleanPath(
-        QCoreApplication::applicationDirPath() +
-        QDir::separator()+
-        QString("config")
-    );
-    if (!QFile::exists(Yasu::mainConfigDirectory)) {
-        // Load Default Config
-        qDebug() << QString("Main Config File Does not Exist!!!") << '\n';
-        Yasu::namelistDirectory = QDir::cleanPath(
-            QCoreApplication::applicationDirPath() +
-            QDir::separator()+
-            QString("names")
-        );
+    // Load configuration via TOML-based ConfigManager
+    Yasu::config = ConfigManager::loadConfig();
 
-        Yasu::studentcnts = 50;
-    } else {
-        QFile mainConfig(Yasu::mainConfigDirectory);
-        if (mainConfig.open(QIODevice::ReadOnly | QIODevice::Text) ){
-            QTextStream in(&mainConfig);
-            while (!in.atEnd()) {
-                QString key = in.readLine();
-                QString val = in.readLine();
-                if (key == "[namelistDirectory]") {
-                    Yasu::namelistDirectory = QDir::cleanPath(
-                        QCoreApplication::applicationDirPath() +
-                        QDir::separator() +
-                        val
-                    );
-                }
-            }
-            mainConfig.close();
-        } else {
-            qDebug() << "Failed to read config File: " << mainConfigDirectory;
-            qDebug() << mainConfig.errorString() << '\n';
-        }
-    }
+    // Resolve namelist path relative to application directory
+    QString namelistDirectory = QDir::cleanPath(
+        QCoreApplication::applicationDirPath() +
+        QDir::separator() +
+        config.namelistDirectory
+    );
+
+    Yasu::studentcnts = 50; // default, updated by initNamelist()
 
     // init date time log file
-
     QDateTime curtime = QDateTime::currentDateTime();
     Yasu::logFilePath = QCoreApplication::applicationDirPath() +
                         QDir::separator() +
@@ -83,7 +57,7 @@ int Yasu::initConfigFiles(){
                         curtime.toString("yyyy-MM-dd.log");
     Yasu::dataFilePath =
                         QCoreApplication::applicationDirPath() +
-                        QDir::separator();
+                        QDir::separator() +
                         QString("data") +
                         QDir::separator() +
                         curtime.toString("yyyy-MM-dd.data");
@@ -139,13 +113,18 @@ int Yasu::initConfigFiles(){
     return 0;
 }
 int Yasu::initNamelist(){
-    QFile file(Yasu::namelistDirectory);
-    if (!QFile::exists(Yasu::namelistDirectory)) {
+    // Resolve namelist path relative to application directory
+    QString namelistPath = QDir::cleanPath(
+        QCoreApplication::applicationDirPath() +
+        QDir::separator() +
+        config.namelistDirectory
+    );
+
+    QFile file(namelistPath);
+    if (!QFile::exists(namelistPath)) {
         qDebug() << "Name List File Does not Exists" << '\n';
         return -1;
     }
-    // bool ok = file.open(QIODevice::ReadWrite);
-    // file.close();
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)){
         QTextStream in(&file);
         // take the place of zero.

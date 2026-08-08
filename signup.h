@@ -33,6 +33,8 @@
 #ifndef SIGNUP_H
 #define SIGNUP_H
 
+#include "configmanager.h"
+
 extern std::vector<QString> extstunames;
 extern std::map<QString, int> nti; // Name to ID
 
@@ -52,16 +54,11 @@ private:
             stime(_stime){}
     };
 
-    // Directory
-    QString mainConfigDirectory;
-    // Directory for namelist file
-    QString namelistDirectory;
     // Students' counts
     int studentcnts;
     // Student Sign up Status
     Student stu[100];
     bool isSigned[100];
-
 
     // Storages
     QVector<SignUpTime> signups;
@@ -72,6 +69,9 @@ private:
     int writeLog(QString);
 
 public:
+    /// Application configuration loaded from config.toml
+    ConfigData config;
+
     int initConfigFiles();
     // init QString Names
     int initNamelist();
