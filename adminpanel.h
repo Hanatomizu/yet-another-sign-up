@@ -44,12 +44,16 @@ private slots:
     void onArbiterClicked();
     void onExportClicked();
     void onDeadlineClicked();
+    void onRewardlyExportClicked();
+    void onRewardlyConfigClicked();
 
 
 private:
     Ui::AdminPanel *ui;
     QPushButton *buttonExportData;
     QPushButton *buttonSetDeadline;
+    QPushButton *buttonRewardlyExport;
+    QPushButton *buttonRewardlyConfig;
 };
 
 #endif // ADMINPANEL_H

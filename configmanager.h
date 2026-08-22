@@ -33,6 +33,18 @@ struct ConfigData {
     QTime eveningDeadline;
     QTime morningNoonSplit;
     QTime noonEveningSplit;
+
+    // --- Rewardly scoring configuration ([rewardly] section) ---
+    // Deductions are stored as positive numbers; the export applies them
+    // as negative points.
+    int morningSignBonusCount;   // 早上签到加分人数
+    int morningSignBonusScore;   // 早上签到加分分数
+    int morningLateDeduction;    // 早上迟到扣分分数
+    int morningAbsentDeduction;  // 早上未签到扣分分数
+    int noonLateDeduction;       // 中午迟到扣分分数
+    int noonAbsentDeduction;     // 中午未签到扣分分数
+    int eveningLateDeduction;    // 晚上迟到扣分分数
+    int eveningAbsentDeduction;  // 晚上未签到扣分分数
 };
 
 /**

@@ -59,6 +59,15 @@ void TestConfig::defaultConfigValues()
     QCOMPARE(cfg.eveningDeadline, QTime(18, 0));
     QCOMPARE(cfg.morningNoonSplit, QTime(12, 0));
     QCOMPARE(cfg.noonEveningSplit, QTime(17, 0));
+
+    QCOMPARE(cfg.morningSignBonusCount, 10);
+    QCOMPARE(cfg.morningSignBonusScore, 2);
+    QCOMPARE(cfg.morningLateDeduction, 1);
+    QCOMPARE(cfg.morningAbsentDeduction, 2);
+    QCOMPARE(cfg.noonLateDeduction, 1);
+    QCOMPARE(cfg.noonAbsentDeduction, 2);
+    QCOMPARE(cfg.eveningLateDeduction, 1);
+    QCOMPARE(cfg.eveningAbsentDeduction, 2);
 }
 
 void TestConfig::saveAndLoadRoundtrip()
@@ -71,6 +80,15 @@ void TestConfig::saveAndLoadRoundtrip()
     cfg.morningNoonSplit = QTime(11, 45);
     cfg.noonEveningSplit = QTime(16, 20);
 
+    cfg.morningSignBonusCount = 5;
+    cfg.morningSignBonusScore = 3;
+    cfg.morningLateDeduction = 2;
+    cfg.morningAbsentDeduction = 4;
+    cfg.noonLateDeduction = 3;
+    cfg.noonAbsentDeduction = 5;
+    cfg.eveningLateDeduction = 4;
+    cfg.eveningAbsentDeduction = 6;
+
     ConfigManager::saveConfig(cfg);
     QVERIFY(QFile::exists(ConfigManager::configFilePath()));
 
@@ -81,6 +99,15 @@ void TestConfig::saveAndLoadRoundtrip()
     QCOMPARE(loaded.eveningDeadline, cfg.eveningDeadline);
     QCOMPARE(loaded.morningNoonSplit, cfg.morningNoonSplit);
     QCOMPARE(loaded.noonEveningSplit, cfg.noonEveningSplit);
+
+    QCOMPARE(loaded.morningSignBonusCount, cfg.morningSignBonusCount);
+    QCOMPARE(loaded.morningSignBonusScore, cfg.morningSignBonusScore);
+    QCOMPARE(loaded.morningLateDeduction, cfg.morningLateDeduction);
+    QCOMPARE(loaded.morningAbsentDeduction, cfg.morningAbsentDeduction);
+    QCOMPARE(loaded.noonLateDeduction, cfg.noonLateDeduction);
+    QCOMPARE(loaded.noonAbsentDeduction, cfg.noonAbsentDeduction);
+    QCOMPARE(loaded.eveningLateDeduction, cfg.eveningLateDeduction);
+    QCOMPARE(loaded.eveningAbsentDeduction, cfg.eveningAbsentDeduction);
 }
 
 void TestConfig::loadCreatesDefaultFileWhenMissing()
@@ -112,6 +139,15 @@ void TestConfig::loadPartialFileKeepsDefaults()
     QCOMPARE(cfg.eveningDeadline, QTime(18, 0));
     QCOMPARE(cfg.morningNoonSplit, QTime(12, 0));
     QCOMPARE(cfg.noonEveningSplit, QTime(17, 0));
+    // Missing [rewardly] section must fall back to defaults too.
+    QCOMPARE(cfg.morningSignBonusCount, 10);
+    QCOMPARE(cfg.morningSignBonusScore, 2);
+    QCOMPARE(cfg.morningLateDeduction, 1);
+    QCOMPARE(cfg.morningAbsentDeduction, 2);
+    QCOMPARE(cfg.noonLateDeduction, 1);
+    QCOMPARE(cfg.noonAbsentDeduction, 2);
+    QCOMPARE(cfg.eveningLateDeduction, 1);
+    QCOMPARE(cfg.eveningAbsentDeduction, 2);
 }
 
 void TestConfig::loadInvalidTomlFallsBackToDefaults()

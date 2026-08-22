@@ -26,17 +26,7 @@
 #include <QDate>
 
 #include "configmanager.h"
-
-/**
- * @brief Internal structure representing a parsed sign-in record.
- */
-struct SignRecord {
-    QString name;
-    QDate date;
-    QTime time;
-    int period;       // 0 = morning, 1 = noon, 2 = evening
-    QString status;   // "签到" or "迟到"
-};
+#include "signlogparser.h"
 
 /**
  * @brief Dialog for exporting sign-in data to Excel.
@@ -76,42 +66,6 @@ private:
      */
     bool exportToExcel(const QDate &startDate, const QDate &endDate,
                        const QString &filePath);
-
-    /**
-     * @brief Parse a single log file and return all valid sign-in records.
-     * @param logFilePath Absolute path to the log file.
-     * @param date The date associated with this log file.
-     * @param config Current deadline/period configuration.
-     * @return Vector of parsed SignRecord entries.
-     */
-    QVector<SignRecord> parseLogFile(const QString &logFilePath,
-                                     const QDate &date,
-                                     const ConfigData &config);
-
-    /**
-     * @brief Determine which period a sign-in time belongs to.
-     * @param time The sign-in time.
-     * @param config Period boundary configuration.
-     * @return 0 = morning, 1 = noon, 2 = evening.
-     */
-    static int determinePeriod(const QTime &time, const ConfigData &config);
-
-    /**
-     * @brief Determine if a sign-in is on-time or late for its period.
-     * @param time The sign-in time.
-     * @param period 0 = morning, 1 = noon, 2 = evening.
-     * @param config Deadline configuration.
-     * @return "签到" if on-time, "迟到" if late.
-     */
-    static QString determineStatus(const QTime &time, int period,
-                                   const ConfigData &config);
-
-    /**
-     * @brief Map a period index to its display name.
-     * @param period 0 = morning, 1 = noon, 2 = evening.
-     * @return "早上", "中午", "晚上"; empty string for unknown periods.
-     */
-    static QString periodName(int period);
 };
 
 #endif // EXPORTDIALOG_H

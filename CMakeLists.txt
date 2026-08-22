@@ -42,6 +42,9 @@ set(PROJECT_SOURCES
         arbiter.h arbiter.cpp arbiter.ui
         configmanager.h configmanager.cpp
         exportdialog.h exportdialog.cpp
+        signlogparser.h signlogparser.cpp
+        rewardlyexportdialog.h rewardlyexportdialog.cpp
+        rewardlyconfigdialog.h rewardlyconfigdialog.cpp
         deadlinedialog.h deadlinedialog.cpp
         resourses.qrc
         LICENSE

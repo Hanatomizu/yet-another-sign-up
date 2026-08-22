@@ -21,6 +21,8 @@
 #include "ui_adminpanel.h"
 #include "exportdialog.h"
 #include "deadlinedialog.h"
+#include "rewardlyexportdialog.h"
+#include "rewardlyconfigdialog.h"
 
 AdminPanel::AdminPanel(QWidget *parent)
     : QWidget(parent)
@@ -42,6 +44,18 @@ AdminPanel::AdminPanel(QWidget *parent)
     buttonSetDeadline->setGeometry(40, 110, 130, 28);
     connect(buttonSetDeadline, &QPushButton::released,
             this, &AdminPanel::onDeadlineClicked);
+
+    // Add "导出到 Rewardly" button below the deadline button
+    buttonRewardlyExport = new QPushButton(QString("导出到 Rewardly"), this);
+    buttonRewardlyExport->setGeometry(40, 150, 150, 28);
+    connect(buttonRewardlyExport, &QPushButton::released,
+            this, &AdminPanel::onRewardlyExportClicked);
+
+    // Add "配置加分项" button below the Rewardly export button
+    buttonRewardlyConfig = new QPushButton(QString("配置加分项"), this);
+    buttonRewardlyConfig->setGeometry(40, 190, 150, 28);
+    connect(buttonRewardlyConfig, &QPushButton::released,
+            this, &AdminPanel::onRewardlyConfigClicked);
 }
 
 
@@ -63,6 +77,22 @@ void AdminPanel::onExportClicked()
 void AdminPanel::onDeadlineClicked()
 {
     DeadlineDialog *dlg = new DeadlineDialog;
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setWindowFlag(Qt::WindowStaysOnTopHint);
+    dlg->show();
+}
+
+void AdminPanel::onRewardlyExportClicked()
+{
+    RewardlyExportDialog *dlg = new RewardlyExportDialog;
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setWindowFlag(Qt::WindowStaysOnTopHint);
+    dlg->show();
+}
+
+void AdminPanel::onRewardlyConfigClicked()
+{
+    RewardlyConfigDialog *dlg = new RewardlyConfigDialog;
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->setWindowFlag(Qt::WindowStaysOnTopHint);
     dlg->show();

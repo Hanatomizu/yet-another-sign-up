@@ -34,10 +34,26 @@ target_link_libraries(test_signup PRIVATE
 add_executable(test_export
     test_export.cpp
     ../exportdialog.cpp
+    ../signlogparser.cpp
     ../configmanager.cpp
 )
 target_include_directories(test_export PRIVATE ${YASU_TEST_INCLUDE_DIR})
 target_link_libraries(test_export PRIVATE
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Test
+    QXlsx
+    tomlplusplus::tomlplusplus
+)
+
+# --- Rewardly export logic -------------------------------------------------
+add_executable(test_rewardly
+    test_rewardly.cpp
+    ../rewardlyexportdialog.cpp
+    ../signlogparser.cpp
+    ../configmanager.cpp
+)
+target_include_directories(test_rewardly PRIVATE ${YASU_TEST_INCLUDE_DIR})
+target_link_libraries(test_rewardly PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Test
     QXlsx
@@ -56,7 +72,7 @@ target_link_libraries(test_arbiter PRIVATE
     Qt${QT_VERSION_MAJOR}::Test
 )
 
-foreach(test_name test_config test_signup test_export test_arbiter)
+foreach(test_name test_config test_signup test_export test_rewardly test_arbiter)
     add_test(NAME ${test_name} COMMAND ${test_name})
     set_tests_properties(${test_name} PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
