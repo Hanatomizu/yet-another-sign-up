@@ -8,9 +8,17 @@
 
 #include <QtTest>
 
+#include <vector>
+#include <map>
+
 #include "rewardlyexportdialog.h"
 #include "signlogparser.h"
 #include "configmanager.h"
+
+// rewardlyexportdialog.cpp references these globals (normally defined in
+// arbiter.cpp); provide them here for the test build.
+std::vector<QString> extstunames;
+std::map<QString, int> nti;
 
 class TestRewardly : public QObject
 {
@@ -23,25 +31,40 @@ private slots:
     void buildRowsEmptyRecords();
     void buildRowsBonusCountZero();
     void buildRowsBonusCountLargerThanAvailable();
+    void buildRowsAbsentPerPeriod();
+    void buildRowsLateStudentNotAbsent();
+    void buildRowsCustomAbsentDeductions();
 };
 
 namespace {
 
+const QDate kDate(2026, 8, 8);
+
 QVector<SignRecord> makeRecords()
 {
-    QDate date(2026, 8, 8);
     QVector<SignRecord> records;
     // Morning on-time (deadline 09:00)
-    records.append({QString("张三"), date, QTime(8, 30, 0), 0, QString("签到")});
-    records.append({QString("李四"), date, QTime(8, 45, 0), 0, QString("签到")});
-    records.append({QString("王五"), date, QTime(8, 50, 0), 0, QString("签到")});
+    records.append({QString("张三"), kDate, QTime(8, 30, 0), 0, QString("签到")});
+    records.append({QString("李四"), kDate, QTime(8, 45, 0), 0, QString("签到")});
+    records.append({QString("王五"), kDate, QTime(8, 50, 0), 0, QString("签到")});
     // Morning late
-    records.append({QString("赵六"), date, QTime(9, 10, 0), 0, QString("迟到")});
+    records.append({QString("赵六"), kDate, QTime(9, 10, 0), 0, QString("迟到")});
     // Noon late
-    records.append({QString("钱七"), date, QTime(13, 0, 0), 1, QString("迟到")});
+    records.append({QString("钱七"), kDate, QTime(13, 0, 0), 1, QString("迟到")});
     // Evening late
-    records.append({QString("孙八"), date, QTime(18, 30, 0), 2, QString("迟到")});
+    records.append({QString("孙八"), kDate, QTime(18, 30, 0), 2, QString("迟到")});
     return records;
+}
+
+int countByReason(const QVector<RewardlyRow> &rows, const QString &reason)
+{
+    int n = 0;
+    for (const auto &row : rows) {
+        if (row.reason == reason) {
+            ++n;
+        }
+    }
+    return n;
 }
 
 } // namespace
@@ -51,7 +74,7 @@ void TestRewardly::buildRowsMorningTopN()
     ConfigData cfg = ConfigManager::defaultConfig(); // count = 10, bonus = 2
 
     QVector<RewardlyRow> rows =
-        RewardlyExportDialog::buildRows(makeRecords(), QDate(2026, 8, 8), cfg);
+        RewardlyExportDialog::buildRows(makeRecords(), {}, kDate, cfg);
 
     // 3 morning bonuses (all 3 qualify, capped by count=10) + 3 lates
     QCOMPARE(rows.size(), 6);
@@ -102,7 +125,7 @@ void TestRewardly::buildRowsMorningTopNCustomConfig()
     cfg.eveningLateDeduction = -5.75;
 
     QVector<RewardlyRow> rows =
-        RewardlyExportDialog::buildRows(makeRecords(), QDate(2026, 8, 8), cfg);
+        RewardlyExportDialog::buildRows(makeRecords(), {}, kDate, cfg);
 
     QCOMPARE(rows.size(), 5);
 
@@ -122,15 +145,14 @@ void TestRewardly::buildRowsMorningTopNCustomConfig()
 void TestRewardly::buildRowsLatesAllPeriods()
 {
     // A record set with only lates (no morning on-time sign-ins).
-    QDate date(2026, 8, 8);
     QVector<SignRecord> records;
-    records.append({QString("张三"), date, QTime(9, 5, 0), 0, QString("迟到")});
-    records.append({QString("李四"), date, QTime(12, 45, 0), 1, QString("迟到")});
-    records.append({QString("王五"), date, QTime(18, 5, 0), 2, QString("迟到")});
+    records.append({QString("张三"), kDate, QTime(9, 5, 0), 0, QString("迟到")});
+    records.append({QString("李四"), kDate, QTime(12, 45, 0), 1, QString("迟到")});
+    records.append({QString("王五"), kDate, QTime(18, 5, 0), 2, QString("迟到")});
 
     ConfigData cfg = ConfigManager::defaultConfig();
-    QVector<RewardlyRow> rows =
-        RewardlyExportDialog::buildRows(records, date, cfg);
+    QVector<RewardlyRow> rows = RewardlyExportDialog::buildRows(
+        records, {}, kDate, cfg);
 
     QCOMPARE(rows.size(), 3);
     QCOMPARE(rows[0].reason, QString("早上迟到"));
@@ -142,7 +164,7 @@ void TestRewardly::buildRowsEmptyRecords()
 {
     ConfigData cfg = ConfigManager::defaultConfig();
     QVector<RewardlyRow> rows =
-        RewardlyExportDialog::buildRows({}, QDate(2026, 8, 8), cfg);
+        RewardlyExportDialog::buildRows({}, {}, kDate, cfg);
     QVERIFY(rows.isEmpty());
 }
 
@@ -152,7 +174,7 @@ void TestRewardly::buildRowsBonusCountZero()
     cfg.morningSignBonusCount = 0;
 
     QVector<RewardlyRow> rows =
-        RewardlyExportDialog::buildRows(makeRecords(), QDate(2026, 8, 8), cfg);
+        RewardlyExportDialog::buildRows(makeRecords(), {}, kDate, cfg);
 
     // No bonus rows; only the 3 lates remain.
     QCOMPARE(rows.size(), 3);
@@ -167,7 +189,7 @@ void TestRewardly::buildRowsBonusCountLargerThanAvailable()
     cfg.morningSignBonusCount = 100;
 
     QVector<RewardlyRow> rows =
-        RewardlyExportDialog::buildRows(makeRecords(), QDate(2026, 8, 8), cfg);
+        RewardlyExportDialog::buildRows(makeRecords(), {}, kDate, cfg);
 
     // Still only 3 bonus rows — capped by the number of on-time sign-ins.
     int bonusCount = 0;
@@ -177,6 +199,96 @@ void TestRewardly::buildRowsBonusCountLargerThanAvailable()
         }
     }
     QCOMPARE(bonusCount, 3);
+}
+
+void TestRewardly::buildRowsAbsentPerPeriod()
+{
+    // Only 张三 signed in (morning on-time); 李四 and 王五 have no record.
+    QVector<SignRecord> records;
+    records.append({QString("张三"), kDate, QTime(8, 30, 0), 0, QString("签到")});
+
+    ConfigData cfg = ConfigManager::defaultConfig();
+    QVector<RewardlyRow> rows = RewardlyExportDialog::buildRows(
+        records,
+        {QString("张三"), QString("李四"), QString("王五")},
+        kDate, cfg);
+
+    // 1 bonus + 2 morning absent + 3 noon absent + 3 evening absent
+    QCOMPARE(rows.size(), 9);
+
+    QCOMPARE(rows[0].name, QString("张三"));
+    QCOMPARE(rows[0].points, 2.0);
+    QCOMPARE(rows[0].reason, QString("早上签到"));
+
+    QCOMPARE(countByReason(rows, QString("早上未签到")), 2);
+    QCOMPARE(countByReason(rows, QString("中午未签到")), 3);
+    QCOMPARE(countByReason(rows, QString("晚上未签到")), 3);
+
+    // Absent rows carry the configured deduction (-2.0 by default) and the
+    // right period name.
+    for (const auto &row : rows) {
+        if (row.reason.endsWith(QString("未签到"))) {
+            QCOMPARE(row.points, -2.0);
+            QVERIFY(!row.periodName.isEmpty());
+        }
+    }
+
+    // 张三 signed in the morning, so he must not appear as 早上未签到.
+    for (const auto &row : rows) {
+        QVERIFY(!(row.name == QString("张三")
+                  && row.reason == QString("早上未签到")));
+    }
+}
+
+void TestRewardly::buildRowsLateStudentNotAbsent()
+{
+    // 李四 signed in late in the morning — that still counts as present
+    // for the morning period, so only 王五 is absent in the morning.
+    QVector<SignRecord> records;
+    records.append({QString("张三"), kDate, QTime(8, 30, 0), 0, QString("签到")});
+    records.append({QString("李四"), kDate, QTime(9, 5, 0), 0, QString("迟到")});
+
+    ConfigData cfg = ConfigManager::defaultConfig();
+    QVector<RewardlyRow> rows = RewardlyExportDialog::buildRows(
+        records,
+        {QString("张三"), QString("李四"), QString("王五")},
+        kDate, cfg);
+
+    // 1 bonus + 1 morning late + 1 morning absent + 3 noon absent + 3 evening absent
+    QCOMPARE(rows.size(), 9);
+
+    QCOMPARE(countByReason(rows, QString("早上迟到")), 1);
+    QCOMPARE(countByReason(rows, QString("早上未签到")), 1);
+
+    // The single morning-absent row must be 王五.
+    for (const auto &row : rows) {
+        if (row.reason == QString("早上未签到")) {
+            QCOMPARE(row.name, QString("王五"));
+            QCOMPARE(row.points, -2.0);
+        }
+    }
+}
+
+void TestRewardly::buildRowsCustomAbsentDeductions()
+{
+    // No records at all: with an empty roster there are no rows, but with
+    // students present every period produces an absent row using the
+    // configured (signed) deduction values.
+    ConfigData cfg = ConfigManager::defaultConfig();
+    cfg.morningAbsentDeduction = -3.5;
+    cfg.noonAbsentDeduction = -4.25;
+    cfg.eveningAbsentDeduction = -5.5;
+
+    QVector<RewardlyRow> rows = RewardlyExportDialog::buildRows(
+        {}, {QString("张三")}, kDate, cfg);
+
+    QCOMPARE(rows.size(), 3);
+    QCOMPARE(rows[0].reason, QString("早上未签到"));
+    QCOMPARE(rows[0].points, -3.5);
+    QCOMPARE(rows[1].reason, QString("中午未签到"));
+    QCOMPARE(rows[1].points, -4.25);
+    QCOMPARE(rows[2].reason, QString("晚上未签到"));
+    QCOMPARE(rows[2].points, -5.5);
 }
 
 QTEST_MAIN(TestRewardly)

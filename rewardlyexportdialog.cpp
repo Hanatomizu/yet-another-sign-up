@@ -18,6 +18,7 @@
  */
 
 #include "rewardlyexportdialog.h"
+#include "signup.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -45,7 +46,7 @@ RewardlyExportDialog::RewardlyExportDialog(QWidget *parent)
     // Title
     auto *titleLabel = new QLabel(
         QString("选择日期范围，生成 Rewardly 加分数据。\n")
-        + QString("导出内容：每日早上签到前N名（加分）+ 全部早/中/晚迟到（扣分）。\n")
+        + QString("导出内容：每日早上签到前N名（加分）+ 全部早/中/晚迟到、未签到（扣分）。\n")
         + QString("勾选左侧复选框选择要导出的记录，点击保存写入 Excel。"),
         this);
     titleLabel->setWordWrap(true);
@@ -111,6 +112,7 @@ RewardlyExportDialog::~RewardlyExportDialog() {}
 
 QVector<RewardlyRow> RewardlyExportDialog::buildRows(
     const QVector<SignRecord> &records,
+    const QSet<QString> &allStudents,
     const QDate &date,
     const ConfigData &config)
 {
@@ -152,6 +154,38 @@ QVector<RewardlyRow> RewardlyExportDialog::buildRows(
                      points, reason});
     }
 
+    // 3. Absent students per period (deduction)
+    // A student counts as signed-in for a period if they have ANY record
+    // in it (on-time or late); only students with no record are absent.
+    QSet<QString> morningSigned;
+    QSet<QString> noonSigned;
+    QSet<QString> eveningSigned;
+    for (const auto &rec : records) {
+        switch (rec.period) {
+        case 0: morningSigned.insert(rec.name); break;
+        case 1: noonSigned.insert(rec.name);    break;
+        case 2: eveningSigned.insert(rec.name); break;
+        }
+    }
+
+    QSet<QString> morningAbsent = allStudents - morningSigned;
+    for (const auto &name : morningAbsent) {
+        rows.append({name, dateStr, signPeriodName(0),
+                     config.morningAbsentDeduction, QString("早上未签到")});
+    }
+
+    QSet<QString> noonAbsent = allStudents - noonSigned;
+    for (const auto &name : noonAbsent) {
+        rows.append({name, dateStr, signPeriodName(1),
+                     config.noonAbsentDeduction, QString("中午未签到")});
+    }
+
+    QSet<QString> eveningAbsent = allStudents - eveningSigned;
+    for (const auto &name : eveningAbsent) {
+        rows.append({name, dateStr, signPeriodName(2),
+                     config.eveningAbsentDeduction, QString("晚上未签到")});
+    }
+
     return rows;
 }
 
@@ -167,6 +201,15 @@ void RewardlyExportDialog::refreshData()
     }
 
     ConfigData config = ConfigManager::loadConfig();
+
+    // Full student roster (skip index 0 — it's a placeholder).
+    // Used to compute absent students per period.
+    QSet<QString> allStudents;
+    for (int i = 1; i < static_cast<int>(extstunames.size()); ++i) {
+        if (!extstunames[i].isEmpty()) {
+            allStudents.insert(extstunames[i]);
+        }
+    }
 
     int total = 0;
     for (QDate date = startDate; date <= endDate; date = date.addDays(1)) {
@@ -184,7 +227,7 @@ void RewardlyExportDialog::refreshData()
             continue;
         }
 
-        QVector<RewardlyRow> rows = buildRows(records, date, config);
+        QVector<RewardlyRow> rows = buildRows(records, allStudents, date, config);
         for (const auto &row : rows) {
             appendRowToTable(row);
         }
