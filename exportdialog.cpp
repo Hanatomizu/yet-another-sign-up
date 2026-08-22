@@ -49,7 +49,8 @@ ExportDialog::ExportDialog(QWidget *parent)
     // Title
     auto *titleLabel = new QLabel(
         QString("选择日期范围，导出签到数据为 Excel 文件。\n")
-        + QString("导出内容：每日早签前10名 + 全部迟到/未签到记录。"),
+        + QString("导出内容：每日早签前10名 + 全部迟到/未签到记录，\n")
+        + QString("日期列将标注签到时间段（早上/中午/晚上）。"),
         this);
     titleLabel->setWordWrap(true);
     mainLayout->addWidget(titleLabel);
@@ -142,8 +143,9 @@ bool ExportDialog::exportToExcel(const QDate &startDate,
 
     struct ExportRow {
         QString name;
-        QString dateStr;   // yyyy-MM-dd
-        QString type;      // "签到" / "迟到" / "未签到"
+        QString dateStr;    // yyyy-MM-dd
+        QString periodName; // 早上 / 中午 / 晚上
+        QString type;       // "签到" / "迟到" / "未签到"
     };
     QVector<ExportRow> exportRows;
 
@@ -199,13 +201,15 @@ bool ExportDialog::exportToExcel(const QDate &startDate,
         // Take top 10
         int takeCount = qMin(10, morningOnTime.size());
         for (int i = 0; i < takeCount; ++i) {
-            exportRows.append({morningOnTime[i].name, dateStr, QString("签到")});
+            exportRows.append({morningOnTime[i].name, dateStr,
+                               periodName(0), QString("签到")});
         }
 
         // 2. All late records across all periods
         for (const auto &rec : records) {
             if (rec.status == QString("迟到")) {
-                exportRows.append({rec.name, dateStr, QString("迟到")});
+                exportRows.append({rec.name, dateStr,
+                                   periodName(rec.period), QString("迟到")});
             }
         }
 
@@ -218,20 +222,6 @@ bool ExportDialog::exportToExcel(const QDate &startDate,
             }
         }
 
-        // Helper lambda: compute absent students for a period
-        auto computeAbsent = [&](const QVector<SignRecord> &periodRecords,
-                                  const QString &periodName) {
-            QSet<QString> signedIn;
-            for (const auto &rec : periodRecords) {
-                signedIn.insert(rec.name);
-            }
-            QSet<QString> absent = allStudents - signedIn;
-            for (const auto &name : absent) {
-                Q_UNUSED(periodName);
-                exportRows.append({name, dateStr, QString("未签到")});
-            }
-        };
-
         // Compute absent for each period. Each missed period = one row.
         // To avoid duplicate rows when a student is absent from multiple periods,
         // we use a per-period set.
@@ -241,7 +231,7 @@ bool ExportDialog::exportToExcel(const QDate &startDate,
         }
         QSet<QString> morningAbsent = allStudents - morningSigned;
         for (const auto &name : morningAbsent) {
-            exportRows.append({name, dateStr, QString("未签到")});
+            exportRows.append({name, dateStr, QString("早上"), QString("未签到")});
         }
 
         QSet<QString> noonSigned;
@@ -250,7 +240,7 @@ bool ExportDialog::exportToExcel(const QDate &startDate,
         }
         QSet<QString> noonAbsent = allStudents - noonSigned;
         for (const auto &name : noonAbsent) {
-            exportRows.append({name, dateStr, QString("未签到")});
+            exportRows.append({name, dateStr, QString("中午"), QString("未签到")});
         }
 
         QSet<QString> eveningSigned;
@@ -259,7 +249,7 @@ bool ExportDialog::exportToExcel(const QDate &startDate,
         }
         QSet<QString> eveningAbsent = allStudents - eveningSigned;
         for (const auto &name : eveningAbsent) {
-            exportRows.append({name, dateStr, QString("未签到")});
+            exportRows.append({name, dateStr, QString("晚上"), QString("未签到")});
         }
     }
 
@@ -283,7 +273,12 @@ bool ExportDialog::exportToExcel(const QDate &startDate,
     for (int i = 0; i < exportRows.size(); ++i) {
         int row = i + 2; // 1-indexed, row 1 is header
         xlsx.write(row, 1, exportRows[i].name);
-        xlsx.write(row, 2, exportRows[i].dateStr);
+        // Date column includes the concrete sign-in period (早上/中午/晚上)
+        QString dateCell = exportRows[i].dateStr;
+        if (!exportRows[i].periodName.isEmpty()) {
+            dateCell += QString(" ") + exportRows[i].periodName;
+        }
+        xlsx.write(row, 2, dateCell);
         xlsx.write(row, 3, exportRows[i].type);
     }
 
@@ -397,5 +392,15 @@ QString ExportDialog::determineStatus(const QTime &time, int period,
         return QString("签到");
     } else {
         return QString("迟到");
+    }
+}
+
+QString ExportDialog::periodName(int period)
+{
+    switch (period) {
+    case 0: return QString("早上");
+    case 1: return QString("中午");
+    case 2: return QString("晚上");
+    default: return QString();
     }
 }
