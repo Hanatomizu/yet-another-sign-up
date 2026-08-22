@@ -82,6 +82,34 @@ ConfigData ConfigManager::loadConfig()
             readTime("noon_evening_split", config.noonEveningSplit);
         }
 
+        // Read [rewardly] section
+        if (tbl.contains("rewardly")) {
+            auto rewardly = *tbl["rewardly"].as_table();
+
+            auto readInt = [&](const char *key, int &target) {
+                if (rewardly.contains(key)) {
+                    target = static_cast<int>(
+                        rewardly[key].value_or<int64_t>(target)
+                    );
+                }
+            };
+
+            auto readDouble = [&](const char *key, double &target) {
+                if (rewardly.contains(key)) {
+                    target = rewardly[key].value_or<double>(0.0);
+                }
+            };
+
+            readInt("morning_sign_bonus_count", config.morningSignBonusCount);
+            readDouble("morning_sign_bonus_score", config.morningSignBonusScore);
+            readDouble("morning_late_deduction", config.morningLateDeduction);
+            readDouble("morning_absent_deduction", config.morningAbsentDeduction);
+            readDouble("noon_late_deduction", config.noonLateDeduction);
+            readDouble("noon_absent_deduction", config.noonAbsentDeduction);
+            readDouble("evening_late_deduction", config.eveningLateDeduction);
+            readDouble("evening_absent_deduction", config.eveningAbsentDeduction);
+        }
+
         qDebug() << "Config loaded from" << configPath;
     } catch (const toml::parse_error &e) {
         qDebug() << "Failed to parse config.toml:" << e.what()
@@ -124,6 +152,18 @@ void ConfigManager::saveConfig(const ConfigData &config)
                       config.noonEveningSplit.toString("HH:mm").toStdString());
     tbl.insert("periods", periodsTbl);
 
+    // [rewardly] section
+    toml::table rewardlyTbl;
+    rewardlyTbl.insert("morning_sign_bonus_count", config.morningSignBonusCount);
+    rewardlyTbl.insert("morning_sign_bonus_score", config.morningSignBonusScore);
+    rewardlyTbl.insert("morning_late_deduction", config.morningLateDeduction);
+    rewardlyTbl.insert("morning_absent_deduction", config.morningAbsentDeduction);
+    rewardlyTbl.insert("noon_late_deduction", config.noonLateDeduction);
+    rewardlyTbl.insert("noon_absent_deduction", config.noonAbsentDeduction);
+    rewardlyTbl.insert("evening_late_deduction", config.eveningLateDeduction);
+    rewardlyTbl.insert("evening_absent_deduction", config.eveningAbsentDeduction);
+    tbl.insert("rewardly", rewardlyTbl);
+
     std::ofstream file(configPath.toStdString());
     if (file.is_open()) {
         file << tbl;
@@ -152,6 +192,15 @@ ConfigData ConfigManager::defaultConfig()
     config.eveningDeadline = QTime(18, 0);
     config.morningNoonSplit = QTime(12, 0);
     config.noonEveningSplit = QTime(17, 0);
+
+    config.morningSignBonusCount = 10;
+    config.morningSignBonusScore = 2.0;
+    config.morningLateDeduction = -1.0;
+    config.morningAbsentDeduction = -2.0;
+    config.noonLateDeduction = -1.0;
+    config.noonAbsentDeduction = -2.0;
+    config.eveningLateDeduction = -1.0;
+    config.eveningAbsentDeduction = -2.0;
     return config;
 }
 

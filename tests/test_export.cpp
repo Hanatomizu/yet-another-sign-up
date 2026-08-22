@@ -1,10 +1,10 @@
 /**
- * Unit tests for the export parsing logic (exportdialog.cpp):
- * determinePeriod(), determineStatus() and parseLogFile().
+ * Unit tests for the export parsing logic (signlogparser.cpp) and the
+ * Excel export pipeline (exportdialog.cpp).
  *
- * The methods under test are private, so this file temporarily re-exposes
- * them with the classic `#define private public` trick. The production
- * sources are compiled unchanged.
+ * exportToExcel() is private, so this file temporarily re-exposes it with
+ * the classic `#define private public` trick. The production sources are
+ * compiled unchanged.
  */
 
 #include <QtTest>
@@ -53,12 +53,12 @@ void TestExport::determinePeriodCases()
 {
     ConfigData cfg = ConfigManager::defaultConfig();
 
-    QCOMPARE(ExportDialog::determinePeriod(QTime(8, 0), cfg), 0);
-    QCOMPARE(ExportDialog::determinePeriod(QTime(12, 0), cfg), 0); // boundary -> morning
-    QCOMPARE(ExportDialog::determinePeriod(QTime(12, 1), cfg), 1);
-    QCOMPARE(ExportDialog::determinePeriod(QTime(17, 0), cfg), 1); // boundary -> noon
-    QCOMPARE(ExportDialog::determinePeriod(QTime(17, 1), cfg), 2);
-    QCOMPARE(ExportDialog::determinePeriod(QTime(23, 59), cfg), 2);
+    QCOMPARE(determineSignPeriod(QTime(8, 0), cfg), 0);
+    QCOMPARE(determineSignPeriod(QTime(12, 0), cfg), 0); // boundary -> morning
+    QCOMPARE(determineSignPeriod(QTime(12, 1), cfg), 1);
+    QCOMPARE(determineSignPeriod(QTime(17, 0), cfg), 1); // boundary -> noon
+    QCOMPARE(determineSignPeriod(QTime(17, 1), cfg), 2);
+    QCOMPARE(determineSignPeriod(QTime(23, 59), cfg), 2);
 }
 
 void TestExport::determineStatusCases()
@@ -66,20 +66,20 @@ void TestExport::determineStatusCases()
     ConfigData cfg = ConfigManager::defaultConfig();
 
     // Morning: deadline 09:00
-    QCOMPARE(ExportDialog::determineStatus(QTime(8, 59), 0, cfg), QString("签到"));
-    QCOMPARE(ExportDialog::determineStatus(QTime(9, 0), 0, cfg), QString("签到"));
-    QCOMPARE(ExportDialog::determineStatus(QTime(9, 1), 0, cfg), QString("迟到"));
+    QCOMPARE(determineSignStatus(QTime(8, 59), 0, cfg), QString("签到"));
+    QCOMPARE(determineSignStatus(QTime(9, 0), 0, cfg), QString("签到"));
+    QCOMPARE(determineSignStatus(QTime(9, 1), 0, cfg), QString("迟到"));
 
     // Noon: deadline 12:30
-    QCOMPARE(ExportDialog::determineStatus(QTime(12, 30), 1, cfg), QString("签到"));
-    QCOMPARE(ExportDialog::determineStatus(QTime(12, 31), 1, cfg), QString("迟到"));
+    QCOMPARE(determineSignStatus(QTime(12, 30), 1, cfg), QString("签到"));
+    QCOMPARE(determineSignStatus(QTime(12, 31), 1, cfg), QString("迟到"));
 
     // Evening: deadline 18:00
-    QCOMPARE(ExportDialog::determineStatus(QTime(18, 0), 2, cfg), QString("签到"));
-    QCOMPARE(ExportDialog::determineStatus(QTime(18, 1), 2, cfg), QString("迟到"));
+    QCOMPARE(determineSignStatus(QTime(18, 0), 2, cfg), QString("签到"));
+    QCOMPARE(determineSignStatus(QTime(18, 1), 2, cfg), QString("迟到"));
 
     // Unknown period is always treated as late.
-    QCOMPARE(ExportDialog::determineStatus(QTime(12, 0), 7, cfg), QString("迟到"));
+    QCOMPARE(determineSignStatus(QTime(12, 0), 7, cfg), QString("迟到"));
 }
 
 void TestExport::parseLogFileSkipsMarkersAndResigned()
@@ -98,9 +98,8 @@ void TestExport::parseLogFileSkipsMarkersAndResigned()
     out << "2026.08.08 08:31, 李四\n"; // missing status -> only 2 fields
     f.close();
 
-    ExportDialog dlg;
     QVector<SignRecord> records =
-        dlg.parseLogFile(path, QDate(2026, 8, 8), ConfigManager::defaultConfig());
+        parseSignLogFile(path, QDate(2026, 8, 8), ConfigManager::defaultConfig());
 
     QCOMPARE(records.size(), 0);
 }
@@ -119,9 +118,8 @@ void TestExport::parseLogFileParsesRecords()
     out << "2026.08.08 12:45:00, 李四, Signed\n";  // noon late
     f.close();
 
-    ExportDialog dlg;
     QVector<SignRecord> records =
-        dlg.parseLogFile(path, QDate(2026, 8, 8), ConfigManager::defaultConfig());
+        parseSignLogFile(path, QDate(2026, 8, 8), ConfigManager::defaultConfig());
 
     QCOMPARE(records.size(), 3);
 
@@ -154,9 +152,8 @@ void TestExport::parseLogFileNormalizesDoubleColon()
     out << "2026.08.08 08:32::00, 张三, Signed\n"; // "hh:mm::ss" typo
     f.close();
 
-    ExportDialog dlg;
     QVector<SignRecord> records =
-        dlg.parseLogFile(path, QDate(2026, 8, 8), ConfigManager::defaultConfig());
+        parseSignLogFile(path, QDate(2026, 8, 8), ConfigManager::defaultConfig());
 
     QCOMPARE(records.size(), 1);
     QCOMPARE(records[0].time, QTime(8, 32, 0));
@@ -177,9 +174,8 @@ void TestExport::parseLogFileHandlesMalformedLines()
     out << "2026.08.08 08:41:00, , Signed\n";     // empty name
     f.close();
 
-    ExportDialog dlg;
     QVector<SignRecord> records =
-        dlg.parseLogFile(path, QDate(2026, 8, 8), ConfigManager::defaultConfig());
+        parseSignLogFile(path, QDate(2026, 8, 8), ConfigManager::defaultConfig());
 
     QCOMPARE(records.size(), 1);
     QCOMPARE(records[0].name, QString("李四"));

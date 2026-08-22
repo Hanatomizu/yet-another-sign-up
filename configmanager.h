@@ -33,6 +33,18 @@ struct ConfigData {
     QTime eveningDeadline;
     QTime morningNoonSplit;
     QTime noonEveningSplit;
+
+    // --- Rewardly scoring configuration ([rewardly] section) ---
+    // Scores are signed decimals (2 decimal places):
+    // positive = 加分, negative = 扣分.
+    int morningSignBonusCount;   // 早上签到加分人数
+    double morningSignBonusScore;   // 早上签到加分分数
+    double morningLateDeduction;    // 早上迟到扣分分数
+    double morningAbsentDeduction;  // 早上未签到扣分分数
+    double noonLateDeduction;       // 中午迟到扣分分数
+    double noonAbsentDeduction;     // 中午未签到扣分分数
+    double eveningLateDeduction;    // 晚上迟到扣分分数
+    double eveningAbsentDeduction;  // 晚上未签到扣分分数
 };
 
 /**

@@ -165,7 +165,7 @@ bool ExportDialog::exportToExcel(const QDate &startDate,
             continue; // No log file for this date — skip
         }
 
-        QVector<SignRecord> records = parseLogFile(logFilePath, date, config);
+        QVector<SignRecord> records = parseSignLogFile(logFilePath, date, config);
         if (records.isEmpty()) {
             continue;
         }
@@ -202,14 +202,14 @@ bool ExportDialog::exportToExcel(const QDate &startDate,
         int takeCount = qMin(10, morningOnTime.size());
         for (int i = 0; i < takeCount; ++i) {
             exportRows.append({morningOnTime[i].name, dateStr,
-                               periodName(0), QString("签到")});
+                               signPeriodName(0), QString("签到")});
         }
 
         // 2. All late records across all periods
         for (const auto &rec : records) {
             if (rec.status == QString("迟到")) {
                 exportRows.append({rec.name, dateStr,
-                                   periodName(rec.period), QString("迟到")});
+                                   signPeriodName(rec.period), QString("迟到")});
             }
         }
 
@@ -292,115 +292,4 @@ bool ExportDialog::exportToExcel(const QDate &startDate,
     }
 
     return true;
-}
-
-QVector<SignRecord> ExportDialog::parseLogFile(const QString &logFilePath,
-                                                const QDate &date,
-                                                const ConfigData &config)
-{
-    QVector<SignRecord> records;
-    QFile file(logFilePath);
-
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qDebug() << "Failed to open log file:" << logFilePath;
-        return records;
-    }
-
-    QTextStream in(&file);
-    while (!in.atEnd()) {
-        QString line = in.readLine().trimmed();
-
-        // Skip header/session markers
-        if (line.isEmpty() || line.startsWith('-') || line.startsWith('=')) {
-            continue;
-        }
-
-        // Parse log format: "yyyy.MM.dd hh:mm:ss, Name, Status"
-        // Use comma-splitting for robustness instead of fixed offsets
-        QStringList parts = line.split(", ");
-        if (parts.size() < 3) {
-            continue;
-        }
-
-        QString statusField = parts[2].trimmed();
-        // Only process successful sign-ins, skip "Resigned" duplicates
-        if (statusField != QString("Signed")) {
-            continue;
-        }
-
-        QString name = parts[1].trimmed();
-        if (name.isEmpty()) {
-            continue;
-        }
-
-        // Parse time from the datetime portion
-        // Format: "yyyy.MM.dd hh:mm:ss"
-        QString dateTimePart = parts[0].trimmed();
-        QStringList dtParts = dateTimePart.split(' ');
-        if (dtParts.size() < 2) {
-            continue;
-        }
-
-        QString timeStr = dtParts[1].trimmed();
-        // Handle possible double-colon typo in log: "hh:mm::ss" → normalize
-        timeStr.replace("::", ":");
-        QTime signTime = QTime::fromString(timeStr, "HH:mm:ss");
-        if (!signTime.isValid()) {
-            // Also try "HH:mm" in case seconds are missing
-            signTime = QTime::fromString(timeStr.left(5), "HH:mm");
-            if (!signTime.isValid()) {
-                continue;
-            }
-        }
-
-        int period = determinePeriod(signTime, config);
-        QString status = determineStatus(signTime, period, config);
-
-        records.append({name, date, signTime, period, status});
-    }
-
-    file.close();
-    return records;
-}
-
-int ExportDialog::determinePeriod(const QTime &time, const ConfigData &config)
-{
-    // Period 0 = morning: time <= morning_noon_split
-    // Period 1 = noon:    morning_noon_split < time <= noon_evening_split
-    // Period 2 = evening: time > noon_evening_split
-    if (time <= config.morningNoonSplit) {
-        return 0;
-    } else if (time <= config.noonEveningSplit) {
-        return 1;
-    } else {
-        return 2;
-    }
-}
-
-QString ExportDialog::determineStatus(const QTime &time, int period,
-                                       const ConfigData &config)
-{
-    QTime deadline;
-    switch (period) {
-    case 0: deadline = config.morningDeadline; break;
-    case 1: deadline = config.noonDeadline;    break;
-    case 2: deadline = config.eveningDeadline; break;
-    default: return QString("迟到");
-    }
-
-    if (time <= deadline) {
-        return QString("签到");
-    } else {
-        return QString("迟到");
-    }
-}
-
-QString ExportDialog::periodName(int period)
-{
-    switch (period) {
-    case 0: return QString("早上");
-    case 1: return QString("中午");
-    case 2: return QString("晚上");
-    default: return QString();
-    }
 }
