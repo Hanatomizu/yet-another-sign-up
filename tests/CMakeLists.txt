@@ -65,11 +65,14 @@ add_executable(test_arbiter
     test_arbiter.cpp
     ../arbiter.cpp
     ../arbiter.ui
+    ../signlogparser.cpp
+    ../configmanager.cpp
 )
 target_include_directories(test_arbiter PRIVATE ${YASU_TEST_INCLUDE_DIR})
 target_link_libraries(test_arbiter PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Test
+    tomlplusplus::tomlplusplus
 )
 
 foreach(test_name test_config test_signup test_export test_rewardly test_arbiter)

@@ -68,10 +68,28 @@ QString signPeriodName(int period);
  * @param logFilePath Absolute path to the log file.
  * @param date The date associated with this log file.
  * @param config Current deadline/period configuration.
- * @return Vector of parsed SignRecord entries.
+ * @return Vector of parsed SignRecord entries ("Signed" records only;
+ *         "Resigned" duplicate attempts are dropped).
  */
 QVector<SignRecord> parseSignLogFile(const QString &logFilePath,
                                      const QDate &date,
                                      const ConfigData &config);
+
+/**
+ * @brief Parse a single log file and return all sign-up attempts.
+ *
+ * Same parsing as parseSignLogFile(), but "Resigned" (duplicate-attempt)
+ * lines are kept with status "Resigned" so repeated sign-ins can be
+ * detected (used by the arbiter statistics window).
+ *
+ * @param logFilePath Absolute path to the log file.
+ * @param date The date associated with this log file.
+ * @param config Current deadline/period configuration.
+ * @return Vector of parsed SignRecord entries: "Signed" lines get
+ *         "签到"/"迟到", "Resigned" lines keep status "Resigned".
+ */
+QVector<SignRecord> parseSignLogFileAll(const QString &logFilePath,
+                                        const QDate &date,
+                                        const ConfigData &config);
 
 #endif // SIGNLOGPARSER_H

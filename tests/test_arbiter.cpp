@@ -1,10 +1,12 @@
 /**
- * Unit tests for the arbiter statistics widget (arbiter.cpp):
- * nameParser(), timeParser() and checkStat().
+ * Unit tests for the arbiter statistics widget (arbiter.cpp): checkStat().
  *
- * The methods under test are private, so this file temporarily re-exposes
- * them with the classic `#define private public` trick. The production
+ * The method under test is private, so this file temporarily re-exposes
+ * it with the classic `#define private public` trick. The production
  * sources are compiled unchanged.
+ *
+ * Periods (早上/中午/晚上) are split by sign-in TIME using the configured
+ * boundaries; session "=" markers in the log must be ignored.
  */
 
 #include <QtTest>
@@ -17,6 +19,7 @@
 // is not re-parsed while `private` is redefined.
 #include <QString>
 #include <QDate>
+#include <QTime>
 #include <QDateTime>
 #include <QFile>
 #include <QDir>
@@ -25,7 +28,10 @@
 #include <QDebug>
 #include <QTextEdit>
 #include <QDateEdit>
+#include <QPushButton>
 #include <QCoreApplication>
+#include <QVector>
+#include <QSet>
 #include <vector>
 #include <string>
 #include <map>
@@ -60,9 +66,7 @@ private slots:
     void initTestCase();
     void cleanupTestCase();
 
-    void nameParserExtractsName();
-    void timeParserExtractsTime();
-    void checkStatSummarizesDay();
+    void checkStatSplitsByTime();
     void checkStatMissingLog();
 };
 
@@ -83,23 +87,7 @@ void TestArbiter::cleanupTestCase()
     QDir(appDir() + QString("/logs")).removeRecursively();
 }
 
-void TestArbiter::nameParserExtractsName()
-{
-    arbiter ab;
-    QCOMPARE(ab.nameParser(QString("2026.08.08 08:30:00, 张三, Signed")),
-             QString("张三"));
-    QCOMPARE(ab.nameParser(QString("2026.08.08 12:45:00, 李四, Resigned")),
-             QString("李四"));
-}
-
-void TestArbiter::timeParserExtractsTime()
-{
-    arbiter ab;
-    QCOMPARE(ab.timeParser(QString("2026.08.08 08:30:00, 张三, Signed")),
-             QString("08:30:00"));
-}
-
-void TestArbiter::checkStatSummarizesDay()
+void TestArbiter::checkStatSplitsByTime()
 {
     QDate day(2026, 8, 8);
     QVERIFY(QDir().mkpath(appDir() + QString("/logs")));
@@ -109,10 +97,14 @@ void TestArbiter::checkStatSummarizesDay()
     QTextStream out(&f);
     out << "- 2026-08-08 yasu created this file\n";
     out << "2026.08.08 08:30:00, 张三, Signed\n";
-    out << "2026.08.08 08:31:00, 张三, Signed\n"; // duplicate in morning
+    out << "2026.08.08 08:31:00, 张三, Resigned\n"; // duplicate in morning
     out << "2026.08.08 08:32:00, 李四, Signed\n";
-    out << "= 2026-08-08 yasu rechecked this file\n"; // period 2 starts
+    // A session marker must NOT split periods anymore — splitting is by time.
+    out << "= 2026-08-08 yasu rechecked this file\n";
     out << "2026.08.08 12:10:00, 张三, Signed\n";
+    out << "2026.08.08 12:45:00, 李四, Resigned\n"; // first noon occurrence
+    out << "2026.08.08 12:46:00, 李四, Resigned\n"; // duplicate attempt in noon
+    out << "2026.08.08 18:20:00, 王五, Signed\n";   // evening
     f.close();
 
     arbiter ab;
@@ -120,20 +112,32 @@ void TestArbiter::checkStatSummarizesDay()
     dateEdit(ab)->setDate(day);
     ab.checkStat();
 
+    // Morning: 张三 + 李四 signed, 王五 absent, 张三 duplicated.
     QString list1 = list(ab, 1)->toPlainText();
     QVERIFY(list1.contains(QString("08:30:00 张三")));
     QVERIFY(list1.contains(QString("08:32:00 李四")));
     QVERIFY(list1.contains(QString("未签到：\n王五"))); // 王五 missing
     QVERIFY(list1.contains(QString("重复签到：\n张三"))); // duplicate
-    QVERIFY(!list1.contains(QString("12:10:00 张三"))); // period 2 must not leak in
+    QVERIFY(!list1.contains(QString("12:10:00 张三"))); // noon must not leak in
 
+    // Noon: 张三 signed; 李四's first noon record (a Resigned attempt) is
+    // shown as present, and his second attempt shows up under 重复签到;
+    // 王五 absent.
     QString list2 = list(ab, 2)->toPlainText();
     QVERIFY(list2.contains(QString("12:10:00 张三")));
-    QVERIFY(list2.contains(QString("未签到：\n李四\n王五"))); // both missing
-    QVERIFY(list2.contains(QString("重复签到：\n"))); // no duplicates in noon
+    QVERIFY(list2.contains(QString("12:45:00 李四")));
+    QVERIFY(list2.contains(QString("未签到：\n王五")));
+    QVERIFY(list2.contains(QString("重复签到：\n李四")));
+    QVERIFY(!list2.contains(QString("12:46:00 李四"))); // dup not in signed list
+    QVERIFY(!list2.contains(QString("08:30:00 张三"))); // morning must not leak in
 
+    // Evening: 王五 signed; 张三 and 李四 absent; no duplicates.
     QString list3 = list(ab, 3)->toPlainText();
-    QVERIFY(list3.isEmpty());
+    QVERIFY(list3.contains(QString("18:20:00 王五")));
+    QVERIFY(list3.contains(QString("未签到：\n张三\n李四")));
+    QVERIFY(list3.contains(QString("重复签到：")));
+    QVERIFY(!list3.contains(QString("重复签到：\n张三"))); // nobody duplicated
+    QVERIFY(!list3.contains(QString("12:10:00 张三"))); // noon must not leak in
 }
 
 void TestArbiter::checkStatMissingLog()

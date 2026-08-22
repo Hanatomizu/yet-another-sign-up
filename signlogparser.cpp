@@ -69,6 +69,22 @@ QVector<SignRecord> parseSignLogFile(const QString &logFilePath,
                                      const QDate &date,
                                      const ConfigData &config)
 {
+    // Same parsing as parseSignLogFileAll(), but drop "Resigned"
+    // duplicate-attempt lines so only successful sign-ins remain.
+    QVector<SignRecord> records;
+    const QVector<SignRecord> all = parseSignLogFileAll(logFilePath, date, config);
+    for (const auto &rec : all) {
+        if (rec.status != QString("Resigned")) {
+            records.append(rec);
+        }
+    }
+    return records;
+}
+
+QVector<SignRecord> parseSignLogFileAll(const QString &logFilePath,
+                                        const QDate &date,
+                                        const ConfigData &config)
+{
     QVector<SignRecord> records;
     QFile file(logFilePath);
 
@@ -94,8 +110,9 @@ QVector<SignRecord> parseSignLogFile(const QString &logFilePath,
         }
 
         QString statusField = parts[2].trimmed();
-        // Only process successful sign-ins, skip "Resigned" duplicates
-        if (statusField != QString("Signed")) {
+        // Only sign-up attempts: "Signed" success or "Resigned" duplicate
+        if (statusField != QString("Signed") &&
+            statusField != QString("Resigned")) {
             continue;
         }
 
@@ -125,7 +142,9 @@ QVector<SignRecord> parseSignLogFile(const QString &logFilePath,
         }
 
         int period = determineSignPeriod(signTime, config);
-        QString status = determineSignStatus(signTime, period, config);
+        QString status = (statusField == QString("Resigned"))
+            ? QString("Resigned")
+            : determineSignStatus(signTime, period, config);
 
         records.append({name, date, signTime, period, status});
     }

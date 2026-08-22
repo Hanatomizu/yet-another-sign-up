@@ -46,6 +46,7 @@ private slots:
     void parseLogFileParsesRecords();
     void parseLogFileNormalizesDoubleColon();
     void parseLogFileHandlesMalformedLines();
+    void parseLogFileAllKeepsResignedLines();
     void exportToExcelWritesPeriodInDateColumn();
 };
 
@@ -182,6 +183,44 @@ void TestExport::parseLogFileHandlesMalformedLines()
     QCOMPARE(records[0].time, QTime(8, 40, 0));
     QCOMPARE(records[0].period, 0);
     QCOMPARE(records[0].status, QString("签到"));
+}
+
+void TestExport::parseLogFileAllKeepsResignedLines()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QString path = dir.filePath(QString("2026-08-08.log"));
+
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    QTextStream out(&f);
+    out << "2026.08.08 08:30:00, 张三, Signed\n";
+    out << "2026.08.08 08:31:00, 张三, Resigned\n"; // duplicate attempt
+    out << "2026.08.08 12:45:00, 李四, Signed\n";   // noon late
+    f.close();
+
+    ConfigData cfg = ConfigManager::defaultConfig();
+
+    // parseSignLogFileAll keeps the Resigned line with status "Resigned".
+    QVector<SignRecord> all =
+        parseSignLogFileAll(path, QDate(2026, 8, 8), cfg);
+    QCOMPARE(all.size(), 3);
+    QCOMPARE(all[0].name, QString("张三"));
+    QCOMPARE(all[0].status, QString("签到"));
+    QCOMPARE(all[1].name, QString("张三"));
+    QCOMPARE(all[1].status, QString("Resigned"));
+    QCOMPARE(all[1].period, 0); // period still derived from time
+    QCOMPARE(all[2].name, QString("李四"));
+    QCOMPARE(all[2].status, QString("迟到"));
+
+    // parseSignLogFile (the export-facing variant) drops Resigned lines.
+    QVector<SignRecord> filtered =
+        parseSignLogFile(path, QDate(2026, 8, 8), cfg);
+    QCOMPARE(filtered.size(), 2);
+    QCOMPARE(filtered[0].name, QString("张三"));
+    QCOMPARE(filtered[0].status, QString("签到"));
+    QCOMPARE(filtered[1].name, QString("李四"));
+    QCOMPARE(filtered[1].status, QString("迟到"));
 }
 
 void TestExport::exportToExcelWritesPeriodInDateColumn()

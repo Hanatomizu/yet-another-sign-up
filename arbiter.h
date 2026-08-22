@@ -2,24 +2,21 @@
 #define ARBITER_H
 
 #include <QWidget>
-#include <QDate>
-#include <QDateTime>
-#include <QString>
-#include <QFile>
-#include <QDir>
-#include <QIODevice>
-#include <QTextStream>
-#include <QDebug>
-#include <QTextEdit>
-#include <QCoreApplication>
-#include <vector>
 
 #include "signup.h"
+#include "signlogparser.h"
 
 namespace Ui {
 class arbiter;
 }
 
+/**
+ * @brief Statistics window ("查看数据").
+ *
+ * Shows the sign-in records of a chosen day split into the three periods
+ * (早上 / 中午 / 晚上). Periods are determined by the sign-in TIME using
+ * the configured period boundaries (morning_noon_split / noon_evening_split).
+ */
 class arbiter : public QWidget
 {
     Q_OBJECT
@@ -30,11 +27,8 @@ public:
 
     void checkStat();
 
-
 private:
     Ui::arbiter *ui;
-    QString nameParser(QString);
-    QString timeParser(QString);
 };
 
 #endif // ARBITER_H
