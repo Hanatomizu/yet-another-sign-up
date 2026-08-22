@@ -48,6 +48,9 @@ struct SignRecord {
  * - Top 10 morning (早) on-time sign-ins → type "签到"
  * - All late sign-ins across all periods → type "迟到"
  * - All absent students per period → type "未签到"
+ *
+ * The "日期" column appends the concrete sign-in period
+ * (早上 / 中午 / 晚上) to the date.
  */
 class ExportDialog : public QWidget
 {
@@ -102,6 +105,13 @@ private:
      */
     static QString determineStatus(const QTime &time, int period,
                                    const ConfigData &config);
+
+    /**
+     * @brief Map a period index to its display name.
+     * @param period 0 = morning, 1 = noon, 2 = evening.
+     * @return "早上", "中午", "晚上"; empty string for unknown periods.
+     */
+    static QString periodName(int period);
 };
 
 #endif // EXPORTDIALOG_H

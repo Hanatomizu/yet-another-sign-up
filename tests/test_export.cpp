@@ -11,6 +11,11 @@
 #include <QFile>
 #include <QTextStream>
 #include <QTemporaryDir>
+#include <QDir>
+#include <QSet>
+#include <QCoreApplication>
+
+#include "xlsxdocument.h"
 
 // Pre-include everything exportdialog.h pulls in so it is not re-parsed
 // while `private` is redefined.
@@ -41,6 +46,7 @@ private slots:
     void parseLogFileParsesRecords();
     void parseLogFileNormalizesDoubleColon();
     void parseLogFileHandlesMalformedLines();
+    void exportToExcelWritesPeriodInDateColumn();
 };
 
 void TestExport::determinePeriodCases()
@@ -180,6 +186,86 @@ void TestExport::parseLogFileHandlesMalformedLines()
     QCOMPARE(records[0].time, QTime(8, 40, 0));
     QCOMPARE(records[0].period, 0);
     QCOMPARE(records[0].status, QString("签到"));
+}
+
+void TestExport::exportToExcelWritesPeriodInDateColumn()
+{
+    // exportToExcel reads the roster from the global extstunames
+    // (index 0 is a placeholder) and logs from <applicationDirPath>/logs.
+    extstunames.clear();
+    extstunames.push_back(QString());   // placeholder
+    extstunames.push_back(QString("张三"));
+    extstunames.push_back(QString("李四"));
+    extstunames.push_back(QString("王五"));
+
+    // Remove any stale config so exportToExcel uses the defaults
+    // (morning deadline 09:00, noon 12:30, evening 18:00).
+    const QString configPath = QCoreApplication::applicationDirPath() +
+                               QString("/config.toml");
+    QFile::remove(configPath);
+
+    const QString logDirPath = QCoreApplication::applicationDirPath() +
+                               QString("/logs");
+    QDir logDir(logDirPath);
+    QVERIFY(logDir.mkpath(logDirPath));
+    const QString logPath = logDirPath + QString("/2026-08-08.log");
+
+    QFile f(logPath);
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    QTextStream out(&f);
+    out << "2026.08.08 08:30:00, 张三, Signed\n"; // morning on time -> top-10 签到
+    out << "2026.08.08 09:05:00, 李四, Signed\n"; // morning late -> 迟到
+    out << "2026.08.08 12:45:00, 王五, Signed\n"; // noon late -> 迟到
+    out << "2026.08.08 18:30:00, 张三, Signed\n"; // evening late -> 迟到
+    f.close();
+
+    QTemporaryDir outDir;
+    QVERIFY(outDir.isValid());
+    const QString xlsxPath = outDir.filePath(QString("out.xlsx"));
+
+    ExportDialog dlg;
+    QVERIFY(dlg.exportToExcel(QDate(2026, 8, 8), QDate(2026, 8, 8), xlsxPath));
+
+    QXlsx::Document xlsx(xlsxPath);
+
+    // Header row
+    QCOMPARE(xlsx.read(1, 1).toString(), QString("姓名"));
+    QCOMPARE(xlsx.read(1, 2).toString(), QString("日期"));
+    QCOMPARE(xlsx.read(1, 3).toString(), QString("类型"));
+
+    // Collect every data row as "姓名|日期列|类型" and check the exact set.
+    // Absent rows are emitted in QSet order, so the set must be compared
+    // order-independently.
+    QSet<QString> rows;
+    int row = 2;
+    while (!xlsx.read(row, 1).toString().isEmpty()) {
+        rows.insert(xlsx.read(row, 1).toString() + QString("|") +
+                    xlsx.read(row, 2).toString() + QString("|") +
+                    xlsx.read(row, 3).toString());
+        ++row;
+    }
+    QCOMPARE(rows.size(), 9);
+
+    // The date column must carry the concrete period (早上/中午/晚上).
+    QVERIFY(rows.contains(QString("张三|2026-08-08 早上|签到")));
+    QVERIFY(rows.contains(QString("李四|2026-08-08 早上|迟到")));
+    QVERIFY(rows.contains(QString("王五|2026-08-08 中午|迟到")));
+    QVERIFY(rows.contains(QString("张三|2026-08-08 晚上|迟到")));
+    QVERIFY(rows.contains(QString("王五|2026-08-08 早上|未签到")));
+    QVERIFY(rows.contains(QString("张三|2026-08-08 中午|未签到")));
+    QVERIFY(rows.contains(QString("李四|2026-08-08 中午|未签到")));
+    QVERIFY(rows.contains(QString("李四|2026-08-08 晚上|未签到")));
+    QVERIFY(rows.contains(QString("王五|2026-08-08 晚上|未签到")));
+
+    // No row may contain a bare date without the period suffix.
+    for (const auto &r : rows) {
+        QVERIFY(!r.contains(QString("|2026-08-08|")));
+    }
+
+    // Clean up the files created next to the test binary.
+    QFile::remove(logPath);
+    QDir().rmdir(logDirPath);
+    QFile::remove(configPath);
 }
 
 QTEST_MAIN(TestExport)
