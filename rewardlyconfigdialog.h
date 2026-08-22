@@ -22,17 +22,20 @@
 
 #include <QWidget>
 #include <QSpinBox>
+#include <QDoubleSpinBox>
 #include <QPushButton>
 
 /**
  * @brief Dialog for configuring the Rewardly scoring rules.
  *
- * Provides eight QSpinBox controls:
+ * Provides one QSpinBox (morning bonus recipient count) and seven
+ * QDoubleSpinBox controls (2 decimal places):
  * - 早上签到加分人数 (morningSignBonusCount)
  * - 早上签到加分分数 (morningSignBonusScore)
  * - 早上/中午/晚上迟到扣分分数
  * - 早上/中午/晚上未签到扣分分数
  *
+ * Score values are signed: positive = 加分, negative = 扣分.
  * Values are saved to config.toml via ConfigManager.
  */
 class RewardlyConfigDialog : public QWidget
@@ -48,13 +51,13 @@ private slots:
 
 private:
     QSpinBox *morningSignCountEdit;
-    QSpinBox *morningSignScoreEdit;
-    QSpinBox *morningLateEdit;
-    QSpinBox *morningAbsentEdit;
-    QSpinBox *noonLateEdit;
-    QSpinBox *noonAbsentEdit;
-    QSpinBox *eveningLateEdit;
-    QSpinBox *eveningAbsentEdit;
+    QDoubleSpinBox *morningSignScoreEdit;
+    QDoubleSpinBox *morningLateEdit;
+    QDoubleSpinBox *morningAbsentEdit;
+    QDoubleSpinBox *noonLateEdit;
+    QDoubleSpinBox *noonAbsentEdit;
+    QDoubleSpinBox *eveningLateEdit;
+    QDoubleSpinBox *eveningAbsentEdit;
 
     void loadCurrentConfig();
 };

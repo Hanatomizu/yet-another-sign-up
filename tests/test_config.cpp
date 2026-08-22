@@ -61,13 +61,13 @@ void TestConfig::defaultConfigValues()
     QCOMPARE(cfg.noonEveningSplit, QTime(17, 0));
 
     QCOMPARE(cfg.morningSignBonusCount, 10);
-    QCOMPARE(cfg.morningSignBonusScore, 2);
-    QCOMPARE(cfg.morningLateDeduction, 1);
-    QCOMPARE(cfg.morningAbsentDeduction, 2);
-    QCOMPARE(cfg.noonLateDeduction, 1);
-    QCOMPARE(cfg.noonAbsentDeduction, 2);
-    QCOMPARE(cfg.eveningLateDeduction, 1);
-    QCOMPARE(cfg.eveningAbsentDeduction, 2);
+    QCOMPARE(cfg.morningSignBonusScore, 2.0);
+    QCOMPARE(cfg.morningLateDeduction, -1.0);
+    QCOMPARE(cfg.morningAbsentDeduction, -2.0);
+    QCOMPARE(cfg.noonLateDeduction, -1.0);
+    QCOMPARE(cfg.noonAbsentDeduction, -2.0);
+    QCOMPARE(cfg.eveningLateDeduction, -1.0);
+    QCOMPARE(cfg.eveningAbsentDeduction, -2.0);
 }
 
 void TestConfig::saveAndLoadRoundtrip()
@@ -81,13 +81,13 @@ void TestConfig::saveAndLoadRoundtrip()
     cfg.noonEveningSplit = QTime(16, 20);
 
     cfg.morningSignBonusCount = 5;
-    cfg.morningSignBonusScore = 3;
-    cfg.morningLateDeduction = 2;
-    cfg.morningAbsentDeduction = 4;
-    cfg.noonLateDeduction = 3;
-    cfg.noonAbsentDeduction = 5;
-    cfg.eveningLateDeduction = 4;
-    cfg.eveningAbsentDeduction = 6;
+    cfg.morningSignBonusScore = 3.5;
+    cfg.morningLateDeduction = -2.25;
+    cfg.morningAbsentDeduction = -4.5;
+    cfg.noonLateDeduction = -3.75;
+    cfg.noonAbsentDeduction = -5.25;
+    cfg.eveningLateDeduction = -4.0;
+    cfg.eveningAbsentDeduction = -6.5;
 
     ConfigManager::saveConfig(cfg);
     QVERIFY(QFile::exists(ConfigManager::configFilePath()));
@@ -141,13 +141,13 @@ void TestConfig::loadPartialFileKeepsDefaults()
     QCOMPARE(cfg.noonEveningSplit, QTime(17, 0));
     // Missing [rewardly] section must fall back to defaults too.
     QCOMPARE(cfg.morningSignBonusCount, 10);
-    QCOMPARE(cfg.morningSignBonusScore, 2);
-    QCOMPARE(cfg.morningLateDeduction, 1);
-    QCOMPARE(cfg.morningAbsentDeduction, 2);
-    QCOMPARE(cfg.noonLateDeduction, 1);
-    QCOMPARE(cfg.noonAbsentDeduction, 2);
-    QCOMPARE(cfg.eveningLateDeduction, 1);
-    QCOMPARE(cfg.eveningAbsentDeduction, 2);
+    QCOMPARE(cfg.morningSignBonusScore, 2.0);
+    QCOMPARE(cfg.morningLateDeduction, -1.0);
+    QCOMPARE(cfg.morningAbsentDeduction, -2.0);
+    QCOMPARE(cfg.noonLateDeduction, -1.0);
+    QCOMPARE(cfg.noonAbsentDeduction, -2.0);
+    QCOMPARE(cfg.eveningLateDeduction, -1.0);
+    QCOMPARE(cfg.eveningAbsentDeduction, -2.0);
 }
 
 void TestConfig::loadInvalidTomlFallsBackToDefaults()

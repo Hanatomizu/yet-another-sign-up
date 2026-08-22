@@ -140,16 +140,16 @@ QVector<RewardlyRow> RewardlyExportDialog::buildRows(
         if (rec.status != QString("迟到")) {
             continue;
         }
-        int deduction = 0;
+        double points = 0.0;
         QString reason;
         switch (rec.period) {
-        case 0: deduction = config.morningLateDeduction; reason = QString("早上迟到"); break;
-        case 1: deduction = config.noonLateDeduction;    reason = QString("中午迟到"); break;
-        case 2: deduction = config.eveningLateDeduction; reason = QString("晚上迟到"); break;
+        case 0: points = config.morningLateDeduction; reason = QString("早上迟到"); break;
+        case 1: points = config.noonLateDeduction;    reason = QString("中午迟到"); break;
+        case 2: points = config.eveningLateDeduction; reason = QString("晚上迟到"); break;
         default: continue;
         }
         rows.append({rec.name, dateStr, signPeriodName(rec.period),
-                     -deduction, reason});
+                     points, reason});
     }
 
     return rows;
@@ -210,7 +210,8 @@ void RewardlyExportDialog::appendRowToTable(const RewardlyRow &row)
     table->setItem(r, 1, new QTableWidgetItem(row.name));
     table->setItem(r, 2, new QTableWidgetItem(
         row.dateStr + QString(" ") + row.periodName));
-    table->setItem(r, 3, new QTableWidgetItem(QString::number(row.points)));
+    table->setItem(r, 3, new QTableWidgetItem(
+        QString::number(row.points, 'f', 2)));
     table->setItem(r, 4, new QTableWidgetItem(row.reason));
 }
 
@@ -225,7 +226,7 @@ void RewardlyExportDialog::onSaveClicked()
         RewardlyRow row;
         row.name = table->item(r, 1)->text();
         row.dateStr = table->item(r, 2)->text();
-        row.points = table->item(r, 3)->text().toInt();
+        row.points = table->item(r, 3)->text().toDouble();
         row.reason = table->item(r, 4)->text();
         selected.append(row);
     }
@@ -262,7 +263,10 @@ void RewardlyExportDialog::onSaveClicked()
         int row = i + 2; // 1-indexed, row 1 is header
         xlsx.write(row, 1, selected[i].name);
         xlsx.write(row, 2, selected[i].dateStr);
-        xlsx.write(row, 3, selected[i].points);
+        // Numeric cell formatted to exactly 2 decimal places
+        QXlsx::Format pointsFormat;
+        pointsFormat.setNumberFormat("0.00");
+        xlsx.write(row, 3, selected[i].points, pointsFormat);
         xlsx.write(row, 4, selected[i].reason);
     }
 

@@ -60,42 +60,46 @@ void TestRewardly::buildRowsMorningTopN()
     QCOMPARE(rows[0].name, QString("张三"));
     QCOMPARE(rows[0].dateStr, QString("2026-08-08"));
     QCOMPARE(rows[0].periodName, QString("早上"));
-    QCOMPARE(rows[0].points, 2);
+    QCOMPARE(rows[0].points, 2.0);
     QCOMPARE(rows[0].reason, QString("早上签到"));
 
     QCOMPARE(rows[1].name, QString("李四"));
-    QCOMPARE(rows[1].points, 2);
+    QCOMPARE(rows[1].points, 2.0);
     QCOMPARE(rows[1].reason, QString("早上签到"));
 
     QCOMPARE(rows[2].name, QString("王五"));
-    QCOMPARE(rows[2].points, 2);
+    QCOMPARE(rows[2].points, 2.0);
     QCOMPARE(rows[2].reason, QString("早上签到"));
 
     // Lates follow with negative points and per-period reasons.
     QCOMPARE(rows[3].name, QString("赵六"));
     QCOMPARE(rows[3].periodName, QString("早上"));
-    QCOMPARE(rows[3].points, -1);
+    QCOMPARE(rows[3].points, -1.0);
     QCOMPARE(rows[3].reason, QString("早上迟到"));
 
     QCOMPARE(rows[4].name, QString("钱七"));
     QCOMPARE(rows[4].periodName, QString("中午"));
-    QCOMPARE(rows[4].points, -1);
+    QCOMPARE(rows[4].points, -1.0);
     QCOMPARE(rows[4].reason, QString("中午迟到"));
 
     QCOMPARE(rows[5].name, QString("孙八"));
     QCOMPARE(rows[5].periodName, QString("晚上"));
-    QCOMPARE(rows[5].points, -1);
+    QCOMPARE(rows[5].points, -1.0);
     QCOMPARE(rows[5].reason, QString("晚上迟到"));
+
+    // Sign convention: positive = 加分, negative = 扣分.
+    QVERIFY(rows[0].points > 0.0);
+    QVERIFY(rows[3].points < 0.0);
 }
 
 void TestRewardly::buildRowsMorningTopNCustomConfig()
 {
     ConfigData cfg = ConfigManager::defaultConfig();
     cfg.morningSignBonusCount = 2;   // only top 2 get the bonus
-    cfg.morningSignBonusScore = 5;   // +5 points each
-    cfg.morningLateDeduction = 3;
-    cfg.noonLateDeduction = 4;
-    cfg.eveningLateDeduction = 5;
+    cfg.morningSignBonusScore = 5.5; // +5.50 points each
+    cfg.morningLateDeduction = -3.5;
+    cfg.noonLateDeduction = -4.25;
+    cfg.eveningLateDeduction = -5.75;
 
     QVector<RewardlyRow> rows =
         RewardlyExportDialog::buildRows(makeRecords(), QDate(2026, 8, 8), cfg);
@@ -103,16 +107,16 @@ void TestRewardly::buildRowsMorningTopNCustomConfig()
     QCOMPARE(rows.size(), 5);
 
     QCOMPARE(rows[0].name, QString("张三"));
-    QCOMPARE(rows[0].points, 5);
+    QCOMPARE(rows[0].points, 5.5);
     QCOMPARE(rows[1].name, QString("李四"));
-    QCOMPARE(rows[1].points, 5);
+    QCOMPARE(rows[1].points, 5.5);
     // 王五 was 3rd — no bonus row for him.
     QCOMPARE(rows[2].name, QString("赵六"));
-    QCOMPARE(rows[2].points, -3);
+    QCOMPARE(rows[2].points, -3.5);
     QCOMPARE(rows[3].name, QString("钱七"));
-    QCOMPARE(rows[3].points, -4);
+    QCOMPARE(rows[3].points, -4.25);
     QCOMPARE(rows[4].name, QString("孙八"));
-    QCOMPARE(rows[4].points, -5);
+    QCOMPARE(rows[4].points, -5.75);
 }
 
 void TestRewardly::buildRowsLatesAllPeriods()

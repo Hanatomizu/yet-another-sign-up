@@ -94,14 +94,20 @@ ConfigData ConfigManager::loadConfig()
                 }
             };
 
+            auto readDouble = [&](const char *key, double &target) {
+                if (rewardly.contains(key)) {
+                    target = rewardly[key].value_or<double>(0.0);
+                }
+            };
+
             readInt("morning_sign_bonus_count", config.morningSignBonusCount);
-            readInt("morning_sign_bonus_score", config.morningSignBonusScore);
-            readInt("morning_late_deduction", config.morningLateDeduction);
-            readInt("morning_absent_deduction", config.morningAbsentDeduction);
-            readInt("noon_late_deduction", config.noonLateDeduction);
-            readInt("noon_absent_deduction", config.noonAbsentDeduction);
-            readInt("evening_late_deduction", config.eveningLateDeduction);
-            readInt("evening_absent_deduction", config.eveningAbsentDeduction);
+            readDouble("morning_sign_bonus_score", config.morningSignBonusScore);
+            readDouble("morning_late_deduction", config.morningLateDeduction);
+            readDouble("morning_absent_deduction", config.morningAbsentDeduction);
+            readDouble("noon_late_deduction", config.noonLateDeduction);
+            readDouble("noon_absent_deduction", config.noonAbsentDeduction);
+            readDouble("evening_late_deduction", config.eveningLateDeduction);
+            readDouble("evening_absent_deduction", config.eveningAbsentDeduction);
         }
 
         qDebug() << "Config loaded from" << configPath;
@@ -188,13 +194,13 @@ ConfigData ConfigManager::defaultConfig()
     config.noonEveningSplit = QTime(17, 0);
 
     config.morningSignBonusCount = 10;
-    config.morningSignBonusScore = 2;
-    config.morningLateDeduction = 1;
-    config.morningAbsentDeduction = 2;
-    config.noonLateDeduction = 1;
-    config.noonAbsentDeduction = 2;
-    config.eveningLateDeduction = 1;
-    config.eveningAbsentDeduction = 2;
+    config.morningSignBonusScore = 2.0;
+    config.morningLateDeduction = -1.0;
+    config.morningAbsentDeduction = -2.0;
+    config.noonLateDeduction = -1.0;
+    config.noonAbsentDeduction = -2.0;
+    config.eveningLateDeduction = -1.0;
+    config.eveningAbsentDeduction = -2.0;
     return config;
 }
 

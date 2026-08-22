@@ -36,7 +36,7 @@ struct RewardlyRow {
     QString name;
     QString dateStr;    // yyyy-MM-dd
     QString periodName; // 早上 / 中午 / 晚上
-    int points;         // signed: +bonus, -deduction
+    double points;      // signed, 2 decimals: positive = 加分, negative = 扣分
     QString reason;     // 早上签到 / 早上迟到 / 中午迟到 / 晚上迟到
 };
 

@@ -38,7 +38,7 @@ RewardlyConfigDialog::RewardlyConfigDialog(QWidget *parent)
 
     auto *titleLabel = new QLabel(
         QString("配置 Rewardly 加分规则。\n")
-        + QString("扣分分数以正数填写，导出时自动记为负数。"),
+        + QString("正数代表加分，负数代表扣分，精确到小数点后两位。"),
         this);
     titleLabel->setWordWrap(true);
     mainLayout->addWidget(titleLabel);
@@ -51,32 +51,39 @@ RewardlyConfigDialog::RewardlyConfigDialog(QWidget *parent)
     morningSignCountEdit->setRange(0, 1000);
     formLayout->addRow(QString("早上签到加分人数:"), morningSignCountEdit);
 
-    morningSignScoreEdit = new QSpinBox(this);
-    morningSignScoreEdit->setRange(0, 1000);
+    morningSignScoreEdit = new QDoubleSpinBox(this);
+    morningSignScoreEdit->setRange(-1000.0, 1000.0);
+    morningSignScoreEdit->setDecimals(2);
     formLayout->addRow(QString("早上签到加分分数:"), morningSignScoreEdit);
 
-    morningLateEdit = new QSpinBox(this);
-    morningLateEdit->setRange(0, 1000);
+    morningLateEdit = new QDoubleSpinBox(this);
+    morningLateEdit->setRange(-1000.0, 1000.0);
+    morningLateEdit->setDecimals(2);
     formLayout->addRow(QString("早上迟到扣分分数:"), morningLateEdit);
 
-    morningAbsentEdit = new QSpinBox(this);
-    morningAbsentEdit->setRange(0, 1000);
+    morningAbsentEdit = new QDoubleSpinBox(this);
+    morningAbsentEdit->setRange(-1000.0, 1000.0);
+    morningAbsentEdit->setDecimals(2);
     formLayout->addRow(QString("早上未签到扣分分数:"), morningAbsentEdit);
 
-    noonLateEdit = new QSpinBox(this);
-    noonLateEdit->setRange(0, 1000);
+    noonLateEdit = new QDoubleSpinBox(this);
+    noonLateEdit->setRange(-1000.0, 1000.0);
+    noonLateEdit->setDecimals(2);
     formLayout->addRow(QString("中午迟到扣分分数:"), noonLateEdit);
 
-    noonAbsentEdit = new QSpinBox(this);
-    noonAbsentEdit->setRange(0, 1000);
+    noonAbsentEdit = new QDoubleSpinBox(this);
+    noonAbsentEdit->setRange(-1000.0, 1000.0);
+    noonAbsentEdit->setDecimals(2);
     formLayout->addRow(QString("中午未签到扣分分数:"), noonAbsentEdit);
 
-    eveningLateEdit = new QSpinBox(this);
-    eveningLateEdit->setRange(0, 1000);
+    eveningLateEdit = new QDoubleSpinBox(this);
+    eveningLateEdit->setRange(-1000.0, 1000.0);
+    eveningLateEdit->setDecimals(2);
     formLayout->addRow(QString("晚上迟到扣分分数:"), eveningLateEdit);
 
-    eveningAbsentEdit = new QSpinBox(this);
-    eveningAbsentEdit->setRange(0, 1000);
+    eveningAbsentEdit = new QDoubleSpinBox(this);
+    eveningAbsentEdit->setRange(-1000.0, 1000.0);
+    eveningAbsentEdit->setDecimals(2);
     formLayout->addRow(QString("晚上未签到扣分分数:"), eveningAbsentEdit);
 
     mainLayout->addLayout(formLayout);
