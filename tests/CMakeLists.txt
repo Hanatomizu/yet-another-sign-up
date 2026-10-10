@@ -49,6 +49,7 @@ target_link_libraries(test_export PRIVATE
 add_executable(test_rewardly
     test_rewardly.cpp
     ../rewardlyexportdialog.cpp
+    ../exceptiondialog.cpp
     ../signlogparser.cpp
     ../configmanager.cpp
 )
@@ -75,7 +76,22 @@ target_link_libraries(test_arbiter PRIVATE
     tomlplusplus::tomlplusplus
 )
 
-foreach(test_name test_config test_signup test_export test_rewardly test_arbiter)
+# --- Exception dialog (设置例外) -------------------------------------------
+add_executable(test_exceptiondialog
+    test_exceptiondialog.cpp
+    ../exceptiondialog.cpp
+    ../signlogparser.cpp
+    ../configmanager.cpp
+)
+target_include_directories(test_exceptiondialog PRIVATE ${YASU_TEST_INCLUDE_DIR})
+target_link_libraries(test_exceptiondialog PRIVATE
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Test
+    tomlplusplus::tomlplusplus
+)
+
+foreach(test_name test_config test_signup test_export test_rewardly test_arbiter
+                  test_exceptiondialog)
     add_test(NAME ${test_name} COMMAND ${test_name})
     set_tests_properties(${test_name} PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"

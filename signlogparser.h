@@ -65,9 +65,14 @@ QString signPeriodName(int period);
 
 /**
  * @brief Parse a single log file and return all valid sign-in records.
+ *
+ * Per-date exceptions (设置例外) configured for @p date are applied first,
+ * so the returned periods/statuses reflect that day's overridden
+ * boundaries and deadlines.
+ *
  * @param logFilePath Absolute path to the log file.
  * @param date The date associated with this log file.
- * @param config Current deadline/period configuration.
+ * @param config Current deadline/period configuration (exceptions included).
  * @return Vector of parsed SignRecord entries ("Signed" records only;
  *         "Resigned" duplicate attempts are dropped).
  */

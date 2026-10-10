@@ -47,6 +47,7 @@ private slots:
     void parseLogFileNormalizesDoubleColon();
     void parseLogFileHandlesMalformedLines();
     void parseLogFileAllKeepsResignedLines();
+    void parseLogFileAppliesDateException();
     void exportToExcelWritesPeriodInDateColumn();
 };
 
@@ -221,6 +222,61 @@ void TestExport::parseLogFileAllKeepsResignedLines()
     QCOMPARE(filtered[0].status, QString("签到"));
     QCOMPARE(filtered[1].name, QString("李四"));
     QCOMPARE(filtered[1].status, QString("迟到"));
+}
+
+void TestExport::parseLogFileAppliesDateException()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QString path = dir.filePath(QString("2026-08-08.log"));
+
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    QTextStream out(&f);
+    out << "2026.08.08 08:50:00, 张三, Signed\n"; // morning on time by default
+    out << "2026.08.08 09:15:00, 李四, Signed\n"; // late by default (09:00)
+    out << "2026.08.08 11:30:00, 王五, Signed\n"; // morning by default (12:00)
+    f.close();
+
+    ConfigData cfg = ConfigManager::defaultConfig();
+
+    // Without an exception: everything is morning, 09:15 and 11:30 are late.
+    QVector<SignRecord> plain =
+        parseSignLogFile(path, QDate(2026, 8, 8), cfg);
+    QCOMPARE(plain.size(), 3);
+    QCOMPARE(plain[0].period, 0);
+    QCOMPARE(plain[0].status, QString("签到"));
+    QCOMPARE(plain[1].period, 0);
+    QCOMPARE(plain[1].status, QString("迟到"));
+    QCOMPARE(plain[2].period, 0);
+    QCOMPARE(plain[2].status, QString("迟到"));
+
+    // Exception for that day's 早上: the period ends at 11:00 and the
+    // deadline moves to 09:30.
+    PeriodException morning;
+    morning.date = QDate(2026, 8, 8);
+    morning.period = 0;
+    morning.split = QTime(11, 0);
+    morning.deadline = QTime(9, 30);
+    cfg.exceptions = {morning};
+
+    QVector<SignRecord> excepted =
+        parseSignLogFile(path, QDate(2026, 8, 8), cfg);
+    QCOMPARE(excepted.size(), 3);
+    QCOMPARE(excepted[0].period, 0);
+    QCOMPARE(excepted[0].status, QString("签到"));
+    // Deadline moved to 09:30 → 09:15 is now on time.
+    QCOMPARE(excepted[1].period, 0);
+    QCOMPARE(excepted[1].status, QString("签到"));
+    // Boundary moved to 11:00 → 11:30 now belongs to the noon period.
+    QCOMPARE(excepted[2].period, 1);
+    QCOMPARE(excepted[2].status, QString("签到"));
+
+    // The exception is bound to its own date only.
+    QVector<SignRecord> otherDay =
+        parseSignLogFile(path, QDate(2026, 8, 9), cfg);
+    QCOMPARE(otherDay[1].status, QString("迟到"));
+    QCOMPARE(otherDay[2].period, 0);
 }
 
 void TestExport::exportToExcelWritesPeriodInDateColumn()

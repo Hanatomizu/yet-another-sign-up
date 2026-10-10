@@ -22,6 +22,41 @@
 
 #include <QString>
 #include <QTime>
+#include <QDate>
+#include <QVector>
+
+/**
+ * @brief One per-day period exception (设置例外).
+ *
+ * For a single date and period, replaces the period boundary and/or the
+ * period deadline that would otherwise come from the global [periods]
+ * configuration.
+ *
+ * - period 0 (早上): split overrides morning_noon_split,
+ *                    deadline overrides morning_deadline
+ * - period 1 (中午): split overrides noon_evening_split,
+ *                    deadline overrides noon_deadline
+ * - period 2 (晚上): deadline overrides evening_deadline;
+ *                    split is unused — evening is the last period of the
+ *                    day, so it has no following boundary.
+ *
+ * The @c split is therefore "the time at which this period ends and the
+ * next one begins". An invalid QTime means "keep the global value".
+ */
+struct PeriodException {
+    QDate date;
+    int period = 0;   // 0 = morning, 1 = noon, 2 = evening
+    QTime split;
+    QTime deadline;
+
+    bool operator==(const PeriodException &other) const
+    {
+        return date == other.date
+            && period == other.period
+            && split == other.split
+            && deadline == other.deadline;
+    }
+};
 
 /**
  * @brief Holds all application configuration loaded from config.toml.
@@ -45,6 +80,10 @@ struct ConfigData {
     double noonAbsentDeduction;     // 中午未签到扣分分数
     double eveningLateDeduction;    // 晚上迟到扣分分数
     double eveningAbsentDeduction;  // 晚上未签到扣分分数
+
+    // --- Per-date period exceptions ([[exceptions]] section) ---
+    // At most one entry per (date, period); loading keeps the last one.
+    QVector<PeriodException> exceptions;
 };
 
 /**
@@ -84,6 +123,33 @@ public:
      * @return ConfigData populated with sensible defaults.
      */
     static ConfigData defaultConfig();
+
+    /**
+     * @brief Build the effective configuration for one specific date.
+     *
+     * Returns a copy of @p config with every exception that matches
+     * @p date applied (period boundaries and deadlines overridden).
+     * Other dates are untouched, so callers must ask for the effective
+     * config of the day they are parsing. The returned copy has an empty
+     * @c exceptions list, since they are already applied.
+     *
+     * @param config Base configuration loaded from config.toml.
+     * @param date The day the returned configuration applies to.
+     * @return Configuration with that day's exceptions applied.
+     */
+    static ConfigData forDate(const ConfigData &config, const QDate &date);
+
+    /**
+     * @brief Validate a list of period exceptions.
+     *
+     * Checks that every entry has a valid date and period, that a period's
+     * 迟到时间 (deadline) is not later than its 分界时间 (split), and that
+     * on any given date the 早/午分界 does not come after the 午/晚分界.
+     *
+     * @param config Configuration whose @c exceptions list is checked.
+     * @return Empty string when valid, otherwise a Chinese error message.
+     */
+    static QString validateExceptions(const ConfigData &config);
 
 private:
     /**

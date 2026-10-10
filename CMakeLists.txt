@@ -46,6 +46,7 @@ set(PROJECT_SOURCES
         rewardlyexportdialog.h rewardlyexportdialog.cpp
         rewardlyconfigdialog.h rewardlyconfigdialog.cpp
         deadlinedialog.h deadlinedialog.cpp
+        exceptiondialog.h exceptiondialog.cpp
         resourses.qrc
         LICENSE
 )

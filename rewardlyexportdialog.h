@@ -79,6 +79,7 @@ public:
 private slots:
     void refreshData();
     void onSaveClicked();
+    void onSetExceptionClicked();
 
 private:
     QDateEdit *startDateEdit;

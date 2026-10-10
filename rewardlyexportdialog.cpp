@@ -19,6 +19,7 @@
 
 #include "rewardlyexportdialog.h"
 #include "signup.h"
+#include "exceptiondialog.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -37,7 +38,7 @@ RewardlyExportDialog::RewardlyExportDialog(QWidget *parent)
     : QWidget(parent)
 {
     setWindowTitle(QString("导出到 Rewardly"));
-    setFixedSize(680, 520);
+    setFixedSize(680, 560);
 
     auto *mainLayout = new QVBoxLayout(this);
     mainLayout->setSpacing(10);
@@ -47,7 +48,8 @@ RewardlyExportDialog::RewardlyExportDialog(QWidget *parent)
     auto *titleLabel = new QLabel(
         QString("选择日期范围，生成 Rewardly 加分数据。\n")
         + QString("导出内容：每日早上签到前N名（加分）+ 全部早/中/晚迟到、未签到（扣分）。\n")
-        + QString("勾选左侧复选框选择要导出的记录，点击保存写入 Excel。"),
+        + QString("勾选左侧复选框选择要导出的记录，点击保存写入 Excel。\n")
+        + QString("若某天的时段分界或签到截止与平时不同，可点击「设置例外」按日期单独调整。"),
         this);
     titleLabel->setWordWrap(true);
     mainLayout->addWidget(titleLabel);
@@ -88,6 +90,10 @@ RewardlyExportDialog::RewardlyExportDialog(QWidget *parent)
     mainLayout->addWidget(statusLabel);
 
     auto *buttonLayout = new QHBoxLayout();
+
+    // 设置例外: per-date period boundary / deadline overrides.
+    auto *exceptionButton = new QPushButton(QString("设置例外"), this);
+    buttonLayout->addWidget(exceptionButton);
     buttonLayout->addStretch();
 
     auto *saveButton = new QPushButton(QString("保存"), this);
@@ -96,6 +102,8 @@ RewardlyExportDialog::RewardlyExportDialog(QWidget *parent)
     buttonLayout->addWidget(cancelButton);
     mainLayout->addLayout(buttonLayout);
 
+    connect(exceptionButton, &QPushButton::released,
+            this, &RewardlyExportDialog::onSetExceptionClicked);
     connect(saveButton, &QPushButton::released,
             this, &RewardlyExportDialog::onSaveClicked);
     connect(cancelButton, &QPushButton::released,
@@ -109,6 +117,16 @@ RewardlyExportDialog::RewardlyExportDialog(QWidget *parent)
 }
 
 RewardlyExportDialog::~RewardlyExportDialog() {}
+
+void RewardlyExportDialog::onSetExceptionClicked()
+{
+    // Exceptions change how the selected date range is parsed (period
+    // boundaries + deadlines), so rebuild the table once they are closed.
+    auto *dlg = new ExceptionDialog(this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    connect(dlg, &QObject::destroyed, this, &RewardlyExportDialog::refreshData);
+    dlg->show();
+}
 
 QVector<RewardlyRow> RewardlyExportDialog::buildRows(
     const QVector<SignRecord> &records,

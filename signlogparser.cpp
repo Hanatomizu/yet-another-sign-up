@@ -93,6 +93,11 @@ QVector<SignRecord> parseSignLogFileAll(const QString &logFilePath,
         return records;
     }
 
+    // Per-date exceptions (设置例外) can move the period boundaries and the
+    // period deadlines for this specific day; apply them before judging both
+    // the period and the on-time/late status of every record.
+    const ConfigData dayConfig = ConfigManager::forDate(config, date);
+
     QTextStream in(&file);
     while (!in.atEnd()) {
         QString line = in.readLine().trimmed();
@@ -141,10 +146,10 @@ QVector<SignRecord> parseSignLogFileAll(const QString &logFilePath,
             }
         }
 
-        int period = determineSignPeriod(signTime, config);
+        int period = determineSignPeriod(signTime, dayConfig);
         QString status = (statusField == QString("Resigned"))
             ? QString("Resigned")
-            : determineSignStatus(signTime, period, config);
+            : determineSignStatus(signTime, period, dayConfig);
 
         records.append({name, date, signTime, period, status});
     }

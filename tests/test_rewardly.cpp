@@ -10,6 +10,9 @@
 
 #include <vector>
 #include <map>
+#include <QTemporaryDir>
+#include <QFile>
+#include <QTextStream>
 
 #include "rewardlyexportdialog.h"
 #include "signlogparser.h"
@@ -34,6 +37,7 @@ private slots:
     void buildRowsAbsentPerPeriod();
     void buildRowsLateStudentNotAbsent();
     void buildRowsCustomAbsentDeductions();
+    void dateExceptionShiftsMorningBonus();
 };
 
 namespace {
@@ -289,6 +293,51 @@ void TestRewardly::buildRowsCustomAbsentDeductions()
     QCOMPARE(rows[1].points, -4.25);
     QCOMPARE(rows[2].reason, QString("晚上未签到"));
     QCOMPARE(rows[2].points, -5.5);
+}
+
+void TestRewardly::dateExceptionShiftsMorningBonus()
+{
+    // End-to-end through the parser: a sign-in at 11:30 earns the morning
+    // bonus with the global config, but stops being a morning sign-in once
+    // that day's 早上 gets an 11:00 分界 (设置例外).
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QString("2026-08-08.log"));
+
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    QTextStream out(&f);
+    out << "2026.08.08 08:30:00, 张三, Signed\n"; // morning on time
+    out << "2026.08.08 11:30:00, 李四, Signed\n"; // morning late by default
+    f.close();
+
+    ConfigData cfg = ConfigManager::defaultConfig(); // bonus count = 10
+
+    QVector<SignRecord> plain = parseSignLogFile(path, kDate, cfg);
+    QVector<RewardlyRow> plainRows =
+        RewardlyExportDialog::buildRows(plain, {}, kDate, cfg);
+    // 张三 gets the morning bonus, 李四 is a morning late (deadline 09:00).
+    QCOMPARE(plainRows.size(), 2);
+    QCOMPARE(plainRows[0].reason, QString("早上签到"));
+    QCOMPARE(plainRows[0].points, 2.0);
+    QCOMPARE(plainRows[1].name, QString("李四"));
+    QCOMPARE(plainRows[1].reason, QString("早上迟到"));
+    QCOMPARE(plainRows[1].points, -1.0);
+
+    PeriodException morning;
+    morning.date = kDate;
+    morning.period = 0;
+    morning.split = QTime(11, 0);
+    morning.deadline = QTime(9, 30);
+    cfg.exceptions = {morning};
+
+    QVector<SignRecord> excepted = parseSignLogFile(path, kDate, cfg);
+    QVector<RewardlyRow> exceptedRows =
+        RewardlyExportDialog::buildRows(excepted, {}, kDate, cfg);
+    // 11:30 is now an on-time noon sign-in, so only 张三's bonus survives.
+    QCOMPARE(exceptedRows.size(), 1);
+    QCOMPARE(exceptedRows[0].name, QString("张三"));
+    QCOMPARE(exceptedRows[0].reason, QString("早上签到"));
 }
 
 QTEST_MAIN(TestRewardly)
