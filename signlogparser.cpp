@@ -67,12 +67,14 @@ QString signPeriodName(int period)
 
 QVector<SignRecord> parseSignLogFile(const QString &logFilePath,
                                      const QDate &date,
-                                     const ConfigData &config)
+                                     const ConfigData &config,
+                                     const QVector<PeriodException> &exceptions)
 {
     // Same parsing as parseSignLogFileAll(), but drop "Resigned"
     // duplicate-attempt lines so only successful sign-ins remain.
     QVector<SignRecord> records;
-    const QVector<SignRecord> all = parseSignLogFileAll(logFilePath, date, config);
+    const QVector<SignRecord> all =
+        parseSignLogFileAll(logFilePath, date, config, exceptions);
     for (const auto &rec : all) {
         if (rec.status != QString("Resigned")) {
             records.append(rec);
@@ -83,7 +85,8 @@ QVector<SignRecord> parseSignLogFile(const QString &logFilePath,
 
 QVector<SignRecord> parseSignLogFileAll(const QString &logFilePath,
                                         const QDate &date,
-                                        const ConfigData &config)
+                                        const ConfigData &config,
+                                        const QVector<PeriodException> &exceptions)
 {
     QVector<SignRecord> records;
     QFile file(logFilePath);
@@ -96,7 +99,7 @@ QVector<SignRecord> parseSignLogFileAll(const QString &logFilePath,
     // Per-date exceptions (设置例外) can move the period boundaries and the
     // period deadlines for this specific day; apply them before judging both
     // the period and the on-time/late status of every record.
-    const ConfigData dayConfig = ConfigManager::forDate(config, date);
+    const ConfigData dayConfig = ConfigManager::forDate(config, date, exceptions);
 
     QTextStream in(&file);
     while (!in.atEnd()) {

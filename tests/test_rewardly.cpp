@@ -329,9 +329,8 @@ void TestRewardly::dateExceptionShiftsMorningBonus()
     morning.period = 0;
     morning.split = QTime(11, 0);
     morning.deadline = QTime(9, 30);
-    cfg.exceptions = {morning};
 
-    QVector<SignRecord> excepted = parseSignLogFile(path, kDate, cfg);
+    QVector<SignRecord> excepted = parseSignLogFile(path, kDate, cfg, {morning});
     QVector<RewardlyRow> exceptedRows =
         RewardlyExportDialog::buildRows(excepted, {}, kDate, cfg);
     // 11:30 is now an on-time noon sign-in, so only 张三's bonus survives.

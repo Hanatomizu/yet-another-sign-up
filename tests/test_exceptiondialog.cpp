@@ -1,9 +1,10 @@
 /**
  * Unit tests for the 设置例外 dialog (exceptiondialog.cpp).
  *
- * The dialog loads and saves the [[exceptions]] section of config.toml; the
- * tests drive its widgets directly (the class members are re-exposed with
- * the same `#define private public` trick used by test_export/test_arbiter).
+ * The window edits a one-off, in-memory exception list and hands it back via
+ * applied(); nothing is written to config.toml. The tests drive its widgets
+ * directly (the class members are re-exposed with the same
+ * `#define private public` trick used by test_export/test_arbiter).
  *
  * Only paths that do not raise a modal message box are exercised:
  * constructing/loading, adding a valid entry, replacing one, and removing a
@@ -12,7 +13,6 @@
 
 #include <QtTest>
 #include <QFile>
-#include <QDir>
 #include <QCoreApplication>
 
 // Pre-include every Qt header exceptiondialog.h pulls in so they are not
@@ -43,14 +43,18 @@ private slots:
     void init();
     void cleanup();
 
-    void loadsExistingExceptions();
+    void showsInitialExceptions();
     void addUpdatesAndRemoves();
     void eveningHasNoSplit();
     void sortedByDateThenPeriod();
+    void acceptEmitsAppliedList();
+    void cancelKeepsOwnerListUnchanged();
 };
 
 void TestExceptionDialog::init()
 {
+    // The window pre-fills the editors from the global [periods] values, so
+    // start every case from the defaults (and keep the run hermetic).
     QFile::remove(ConfigManager::configFilePath());
 }
 
@@ -59,18 +63,15 @@ void TestExceptionDialog::cleanup()
     QFile::remove(ConfigManager::configFilePath());
 }
 
-void TestExceptionDialog::loadsExistingExceptions()
+void TestExceptionDialog::showsInitialExceptions()
 {
-    ConfigData cfg = ConfigManager::defaultConfig();
     PeriodException ex;
     ex.date = QDate(2026, 10, 1);
     ex.period = 0;
     ex.split = QTime(12, 40);
     ex.deadline = QTime(9, 30);
-    cfg.exceptions = {ex};
-    ConfigManager::saveConfig(cfg);
 
-    ExceptionDialog dlg;
+    ExceptionDialog dlg({ex});
     QCOMPARE(dlg.table->rowCount(), 1);
     QCOMPARE(dlg.table->item(0, 0)->text(), QString("2026-10-01"));
     QCOMPARE(dlg.table->item(0, 1)->text(), QString("早上"));
@@ -80,7 +81,7 @@ void TestExceptionDialog::loadsExistingExceptions()
 
 void TestExceptionDialog::addUpdatesAndRemoves()
 {
-    ExceptionDialog dlg;               // empty config → empty list
+    ExceptionDialog dlg({});            // nothing configured yet
     QCOMPARE(dlg.table->rowCount(), 0);
 
     dlg.dateEdit->setDate(QDate(2026, 10, 2));
@@ -105,12 +106,12 @@ void TestExceptionDialog::addUpdatesAndRemoves()
     dlg.table->selectRow(0);
     dlg.onRemoveClicked();
     QCOMPARE(dlg.table->rowCount(), 0);
-    QVERIFY(dlg.exceptions.isEmpty());
+    QVERIFY(dlg.list.isEmpty());
 }
 
 void TestExceptionDialog::eveningHasNoSplit()
 {
-    ExceptionDialog dlg;
+    ExceptionDialog dlg({});
     dlg.periodCombo->setCurrentIndex(2);   // 晚上
 
     QVERIFY(!dlg.splitEdit->isEnabled());
@@ -126,15 +127,13 @@ void TestExceptionDialog::eveningHasNoSplit()
     QCOMPARE(dlg.table->item(0, 3)->text(), QString("20:00"));
 
     // The stored entry carries no split for 晚上; only the deadline matters.
-    QCOMPARE(int(dlg.exceptions.size()), 1);
-    QVERIFY(!dlg.exceptions[0].split.isValid());
-    QCOMPARE(dlg.exceptions[0].deadline, QTime(20, 0));
+    QCOMPARE(int(dlg.list.size()), 1);
+    QVERIFY(!dlg.list[0].split.isValid());
+    QCOMPARE(dlg.list[0].deadline, QTime(20, 0));
 }
 
 void TestExceptionDialog::sortedByDateThenPeriod()
 {
-    ConfigData cfg = ConfigManager::defaultConfig();
-
     PeriodException evening;
     evening.date = QDate(2026, 10, 5);
     evening.period = 2;
@@ -152,10 +151,8 @@ void TestExceptionDialog::sortedByDateThenPeriod()
     morning.split = QTime(12, 30);
     morning.deadline = QTime(9, 30);
 
-    cfg.exceptions = {evening, noon, morning};   // deliberately unsorted
-    ConfigManager::saveConfig(cfg);
-
-    ExceptionDialog dlg;
+    // Deliberately unsorted input.
+    ExceptionDialog dlg({evening, noon, morning});
     QCOMPARE(dlg.table->rowCount(), 3);
     QCOMPARE(dlg.table->item(0, 0)->text(), QString("2026-10-01"));
     QCOMPARE(dlg.table->item(0, 1)->text(), QString("早上"));
@@ -163,6 +160,61 @@ void TestExceptionDialog::sortedByDateThenPeriod()
     QCOMPARE(dlg.table->item(1, 1)->text(), QString("中午"));
     QCOMPARE(dlg.table->item(2, 0)->text(), QString("2026-10-05"));
     QCOMPARE(dlg.table->item(2, 1)->text(), QString("晚上"));
+}
+
+void TestExceptionDialog::acceptEmitsAppliedList()
+{
+    ExceptionDialog dlg({});
+
+    dlg.dateEdit->setDate(QDate(2026, 10, 6));
+    dlg.periodCombo->setCurrentIndex(2);       // 晚上
+    dlg.deadlineEdit->setTime(QTime(20, 30));
+    dlg.onAddClicked();
+
+    QVector<PeriodException> received;
+    bool emitted = false;
+    QObject::connect(&dlg, &ExceptionDialog::applied,
+                     [&](const QVector<PeriodException> &list) {
+                         emitted = true;
+                         received = list;
+                     });
+
+    dlg.onAcceptClicked();
+
+    QVERIFY(emitted);
+    QCOMPARE(int(received.size()), 1);
+    QCOMPARE(received[0].date, QDate(2026, 10, 6));
+    QCOMPARE(received[0].period, 2);
+    QCOMPARE(received[0].deadline, QTime(20, 30));
+    // 确定 also exposes the list before/without closing.
+    QCOMPARE(dlg.exceptions(), received);
+}
+
+void TestExceptionDialog::cancelKeepsOwnerListUnchanged()
+{
+    PeriodException existing;
+    existing.date = QDate(2026, 10, 1);
+    existing.period = 1;
+    existing.split = QTime(17, 30);
+    existing.deadline = QTime(13, 0);
+
+    ExceptionDialog dlg({existing});
+
+    // Edit the list, then close with 取消 (close() without applied()).
+    dlg.dateEdit->setDate(QDate(2026, 10, 7));
+    dlg.periodCombo->setCurrentIndex(1);
+    dlg.splitEdit->setTime(QTime(18, 0));
+    dlg.deadlineEdit->setTime(QTime(13, 15));
+    dlg.onAddClicked();
+    QCOMPARE(dlg.table->rowCount(), 2);
+
+    bool emitted = false;
+    QObject::connect(&dlg, &ExceptionDialog::applied,
+                     [&] { emitted = true; });
+    dlg.close();
+    QVERIFY(!emitted);
+    // The owner's list is untouched: only the window's own copy changed.
+    QCOMPARE(existing.split, QTime(17, 30));
 }
 
 QTEST_MAIN(TestExceptionDialog)

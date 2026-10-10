@@ -32,6 +32,10 @@
  * period deadline that would otherwise come from the global [periods]
  * configuration.
  *
+ * Exceptions are a one-off, in-memory setting: they are never written to
+ * config.toml and only live as long as the caller holds them (the
+ * 「导出到 Rewardly」 window keeps its own list).
+ *
  * - period 0 (早上): split overrides morning_noon_split,
  *                    deadline overrides morning_deadline
  * - period 1 (中午): split overrides noon_evening_split,
@@ -80,10 +84,6 @@ struct ConfigData {
     double noonAbsentDeduction;     // 中午未签到扣分分数
     double eveningLateDeduction;    // 晚上迟到扣分分数
     double eveningAbsentDeduction;  // 晚上未签到扣分分数
-
-    // --- Per-date period exceptions ([[exceptions]] section) ---
-    // At most one entry per (date, period); loading keeps the last one.
-    QVector<PeriodException> exceptions;
 };
 
 /**
@@ -127,17 +127,21 @@ public:
     /**
      * @brief Build the effective configuration for one specific date.
      *
-     * Returns a copy of @p config with every exception that matches
-     * @p date applied (period boundaries and deadlines overridden).
+     * Returns a copy of @p config with every exception in @p exceptions
+     * that matches @p date applied (period boundaries and deadlines
+     * overridden). Exceptions are not part of config.toml, so the caller
+     * passes its own (in-memory) list.
+     *
      * Other dates are untouched, so callers must ask for the effective
-     * config of the day they are parsing. The returned copy has an empty
-     * @c exceptions list, since they are already applied.
+     * config of the day they are parsing.
      *
      * @param config Base configuration loaded from config.toml.
      * @param date The day the returned configuration applies to.
+     * @param exceptions Per-date overrides to apply (may be empty).
      * @return Configuration with that day's exceptions applied.
      */
-    static ConfigData forDate(const ConfigData &config, const QDate &date);
+    static ConfigData forDate(const ConfigData &config, const QDate &date,
+                              const QVector<PeriodException> &exceptions);
 
     /**
      * @brief Validate a list of period exceptions.
@@ -146,10 +150,12 @@ public:
      * 迟到时间 (deadline) is not later than its 分界时间 (split), and that
      * on any given date the 早/午分界 does not come after the 午/晚分界.
      *
-     * @param config Configuration whose @c exceptions list is checked.
+     * @param config Base configuration (global boundaries/deadlines).
+     * @param exceptions The (in-memory) exception list to check.
      * @return Empty string when valid, otherwise a Chinese error message.
      */
-    static QString validateExceptions(const ConfigData &config);
+    static QString validateExceptions(const ConfigData &config,
+                                      const QVector<PeriodException> &exceptions);
 
 private:
     /**

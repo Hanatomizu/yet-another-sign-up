@@ -31,12 +31,17 @@
 #include "configmanager.h"
 
 /**
- * @brief Dialog for managing per-date period exceptions (设置例外).
+ * @brief Window for managing one-off per-date period exceptions (设置例外).
  *
  * Lets the user pick a date and one of the three periods (早上/中午/晚上)
  * and give that period a different 分界时间 (the time at which the period
  * ends) and 迟到时间 (deadline). Entries are kept in a working list shown
- * in a table; 「保存」 writes them to config.toml as [[exceptions]].
+ * in a table.
+ *
+ * The exceptions are a one-off, in-memory setting: 「确定」 emits applied()
+ * with the edited list and closes the window, 「取消」 discards the edits.
+ * Nothing is written to config.toml — the list only lives as long as the
+ * window that owns it (the 「导出到 Rewardly」 window).
  *
  * 晚上 is the last period of the day, so it has no following boundary:
  * its 分界时间 input is disabled and only the 迟到时间 applies.
@@ -46,8 +51,20 @@ class ExceptionDialog : public QWidget
     Q_OBJECT
 
 public:
-    explicit ExceptionDialog(QWidget *parent = nullptr);
+    explicit ExceptionDialog(const QVector<PeriodException> &initial,
+                             QWidget *parent = nullptr);
     ~ExceptionDialog();
+
+    /// Exceptions currently listed in the table.
+    QVector<PeriodException> exceptions() const { return list; }
+
+signals:
+    /**
+     * @brief Emitted right before the window closes with the edited list.
+     *
+     * Only 确定 emits this; closing with 取消 leaves the owner's list as-is.
+     */
+    void applied(const QVector<PeriodException> &exceptions);
 
 private slots:
     void onPeriodChanged();
@@ -55,7 +72,7 @@ private slots:
     void onRemoveClicked();
     void onTableSelectionChanged();
     void onTableDoubleClicked(int row, int column);
-    void onSaveClicked();
+    void onAcceptClicked();
 
 private:
     QDateEdit *dateEdit;
@@ -68,10 +85,9 @@ private:
     QPushButton *addButton;
     QPushButton *removeButton;
 
-    /// Working copy of the exception list; only written out on 保存.
-    QVector<PeriodException> exceptions;
+    /// Working copy of the exception list; handed out via applied().
+    QVector<PeriodException> list;
 
-    void loadExceptions();
     void refreshTable();
     void selectRow(int row);
     void loadRowIntoEditors(int row);

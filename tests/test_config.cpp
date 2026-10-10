@@ -36,8 +36,7 @@ private slots:
     void migratesLegacyNamelist();
     void configFilePathPointsToToml();
 
-    void exceptionsRoundtrip();
-    void loadExceptionsSkipsInvalidEntries();
+    void exceptionsAreNotPersisted();
     void forDateAppliesExceptions();
     void validateExceptionsChecksOrdering();
 };
@@ -73,9 +72,6 @@ void TestConfig::defaultConfigValues()
     QCOMPARE(cfg.noonAbsentDeduction, -2.0);
     QCOMPARE(cfg.eveningLateDeduction, -1.0);
     QCOMPARE(cfg.eveningAbsentDeduction, -2.0);
-
-    // No per-date exceptions by default.
-    QVERIFY(cfg.exceptions.isEmpty());
 }
 
 void TestConfig::saveAndLoadRoundtrip()
@@ -156,8 +152,6 @@ void TestConfig::loadPartialFileKeepsDefaults()
     QCOMPARE(cfg.noonAbsentDeduction, -2.0);
     QCOMPARE(cfg.eveningLateDeduction, -1.0);
     QCOMPARE(cfg.eveningAbsentDeduction, -2.0);
-    // Missing [[exceptions]] must simply mean "no exceptions".
-    QVERIFY(cfg.exceptions.isEmpty());
 }
 
 void TestConfig::loadInvalidTomlFallsBackToDefaults()
@@ -195,67 +189,39 @@ void TestConfig::configFilePathPointsToToml()
     QVERIFY(path.endsWith(QString("config.toml")));
 }
 
-void TestConfig::exceptionsRoundtrip()
+void TestConfig::exceptionsAreNotPersisted()
 {
+    // 设置例外 is a one-off, in-memory setting: config.toml has no section
+    // for it, and a hand-written [[exceptions]] block must be ignored
+    // rather than being applied.
     ConfigData cfg = ConfigManager::defaultConfig();
-
-    PeriodException morning;          // 早上: boundary + deadline override
-    morning.date = QDate(2026, 10, 1);
-    morning.period = 0;
-    morning.split = QTime(12, 40);
-    morning.deadline = QTime(9, 30);
-
-    PeriodException evening;          // 晚上: deadline only
-    evening.date = QDate(2026, 10, 1);
-    evening.period = 2;
-    evening.deadline = QTime(20, 0);
-
-    PeriodException noonOtherDay;     // 中午 on another day
-    noonOtherDay.date = QDate(2026, 10, 5);
-    noonOtherDay.period = 1;
-    noonOtherDay.split = QTime(18, 30);
-    noonOtherDay.deadline = QTime(13, 0);
-
-    cfg.exceptions = {morning, evening, noonOtherDay};
-
     ConfigManager::saveConfig(cfg);
-    QVERIFY(QFile::exists(ConfigManager::configFilePath()));
 
-    ConfigData loaded = ConfigManager::loadConfig();
-    QCOMPARE(loaded.exceptions.size(), 3);
-    QCOMPARE(loaded.exceptions[0], morning);
-    QCOMPARE(loaded.exceptions[1], evening);
-    QCOMPARE(loaded.exceptions[2], noonOtherDay);
-
-    // The override must survive the TOML representation: evening kept an
-    // invalid (unset) split, the others kept their real values.
-    QVERIFY(!loaded.exceptions[1].split.isValid());
-    QCOMPARE(loaded.exceptions[2].split, QTime(18, 30));
-}
-
-void TestConfig::loadExceptionsSkipsInvalidEntries()
-{
     QFile f(ConfigManager::configFilePath());
+    QVERIFY(f.open(QIODevice::ReadOnly | QIODevice::Text));
+    const QString saved = QString::fromUtf8(f.readAll());
+    f.close();
+    QVERIFY(!saved.contains(QString("exception")));
+
     QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
     QTextStream out(&f);
-    out << "[[exceptions]]\n";
-    out << "date = '2026-10-03'\n";
-    out << "period = 1\n";
-    out << "split = '18:15'\n";
-    out << "deadline = '13:10'\n";
-    out << "[[exceptions]]\n";
-    out << "date = 'not-a-date'\n";   // skipped: unparsable date
+    out << saved;
+    out << "\n[[exceptions]]\n";
+    out << "date = '2026-10-01'\n";
     out << "period = 0\n";
-    out << "[[exceptions]]\n";
-    out << "date = '2026-10-04'\n";
-    out << "period = 7\n";            // skipped: unknown period
+    out << "split = '12:40'\n";
+    out << "deadline = '09:30'\n";
     f.close();
 
-    ConfigData cfg = ConfigManager::loadConfig();
-    QCOMPARE(cfg.exceptions.size(), 1);
-    QCOMPARE(cfg.exceptions[0].date, QDate(2026, 10, 3));
-    QCOMPARE(cfg.exceptions[0].period, 1);
-    QCOMPARE(cfg.exceptions[0].deadline, QTime(13, 10));
+    ConfigData loaded = ConfigManager::loadConfig();
+    QCOMPARE(loaded.morningDeadline, QTime(9, 0));    // defaults untouched
+    QCOMPARE(loaded.morningNoonSplit, QTime(12, 0));
+
+    // Re-saving drops the unknown section again.
+    ConfigManager::saveConfig(loaded);
+    QVERIFY(f.open(QIODevice::ReadOnly | QIODevice::Text));
+    QVERIFY(!QString::fromUtf8(f.readAll()).contains(QString("exception")));
+    f.close();
 }
 
 void TestConfig::forDateAppliesExceptions()
@@ -274,9 +240,9 @@ void TestConfig::forDateAppliesExceptions()
     evening.split = QTime(15, 0);    // meaningless for 晚上: must be ignored
     evening.deadline = QTime(20, 0);
 
-    cfg.exceptions = {morning, evening};
+    const QVector<PeriodException> exceptions = {morning, evening};
 
-    ConfigData day = ConfigManager::forDate(cfg, QDate(2026, 10, 1));
+    ConfigData day = ConfigManager::forDate(cfg, QDate(2026, 10, 1), exceptions);
     QCOMPARE(day.morningNoonSplit, QTime(13, 0));
     QCOMPARE(day.morningDeadline, QTime(10, 30));
     QCOMPARE(day.eveningDeadline, QTime(20, 0));
@@ -285,10 +251,16 @@ void TestConfig::forDateAppliesExceptions()
     QCOMPARE(day.noonDeadline, cfg.noonDeadline);
 
     // Other dates keep the global configuration untouched.
-    ConfigData other = ConfigManager::forDate(cfg, QDate(2026, 10, 2));
+    ConfigData other = ConfigManager::forDate(cfg, QDate(2026, 10, 2), exceptions);
     QCOMPARE(other.morningNoonSplit, cfg.morningNoonSplit);
     QCOMPARE(other.morningDeadline, cfg.morningDeadline);
     QCOMPARE(other.eveningDeadline, cfg.eveningDeadline);
+
+    // An empty exception list leaves the day on the global configuration.
+    ConfigData none = ConfigManager::forDate(cfg, QDate(2026, 10, 1), {});
+    QCOMPARE(none.morningNoonSplit, cfg.morningNoonSplit);
+    QCOMPARE(none.morningDeadline, cfg.morningDeadline);
+    QCOMPARE(none.eveningDeadline, cfg.eveningDeadline);
 }
 
 void TestConfig::validateExceptionsChecksOrdering()
@@ -296,7 +268,7 @@ void TestConfig::validateExceptionsChecksOrdering()
     ConfigData cfg = ConfigManager::defaultConfig();
 
     // Defaults and an empty exception list are fine.
-    QVERIFY(ConfigManager::validateExceptions(cfg).isEmpty());
+    QVERIFY(ConfigManager::validateExceptions(cfg, {}).isEmpty());
 
     // A deadline later than its own period boundary is rejected.
     PeriodException badDeadline;
@@ -304,8 +276,7 @@ void TestConfig::validateExceptionsChecksOrdering()
     badDeadline.period = 0;
     badDeadline.split = QTime(11, 0);
     badDeadline.deadline = QTime(11, 30);
-    cfg.exceptions = {badDeadline};
-    QVERIFY(!ConfigManager::validateExceptions(cfg).isEmpty());
+    QVERIFY(!ConfigManager::validateExceptions(cfg, {badDeadline}).isEmpty());
 
     // 早/午分界 after 午/晚分界 is rejected.
     PeriodException lateMorning;
@@ -320,19 +291,17 @@ void TestConfig::validateExceptionsChecksOrdering()
     noon.split = QTime(17, 0);
     noon.deadline = QTime(12, 30);
 
-    cfg.exceptions = {lateMorning, noon};
-    QVERIFY(!ConfigManager::validateExceptions(cfg).isEmpty());
+    QVERIFY(!ConfigManager::validateExceptions(cfg, {lateMorning, noon})
+                 .isEmpty());
 
     // The same morning override alone is still invalid: it would push the
     // 早/午分界 past the global 午/晚分界.
-    cfg.exceptions = {lateMorning};
-    QVERIFY(!ConfigManager::validateExceptions(cfg).isEmpty());
+    QVERIFY(!ConfigManager::validateExceptions(cfg, {lateMorning}).isEmpty());
 
     // A consistent morning override is accepted.
     PeriodException goodMorning = lateMorning;
     goodMorning.split = QTime(13, 0);
-    cfg.exceptions = {goodMorning};
-    QVERIFY(ConfigManager::validateExceptions(cfg).isEmpty());
+    QVERIFY(ConfigManager::validateExceptions(cfg, {goodMorning}).isEmpty());
 }
 
 QTEST_GUILESS_MAIN(TestConfig)

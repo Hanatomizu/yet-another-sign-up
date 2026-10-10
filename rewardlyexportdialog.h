@@ -80,12 +80,21 @@ private slots:
     void refreshData();
     void onSaveClicked();
     void onSetExceptionClicked();
+    void onExceptionsApplied(const QVector<PeriodException> &exceptions);
 
 private:
     QDateEdit *startDateEdit;
     QDateEdit *endDateEdit;
     QTableWidget *table;
     QLabel *statusLabel;
+
+    /**
+     * @brief One-off per-date exceptions (设置例外), in memory only.
+     *
+     * They are used when parsing the selected date range and are lost when
+     * this window is closed; they are never written to config.toml.
+     */
+    QVector<PeriodException> exceptions;
 
     void appendRowToTable(const RewardlyRow &row);
 };

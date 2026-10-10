@@ -56,8 +56,10 @@ void sortExceptions(QVector<PeriodException> &list)
 
 } // namespace
 
-ExceptionDialog::ExceptionDialog(QWidget *parent)
+ExceptionDialog::ExceptionDialog(const QVector<PeriodException> &initial,
+                                 QWidget *parent)
     : QWidget(parent)
+    , list(initial)
 {
     setWindowTitle(QString("设置例外"));
     setFixedSize(660, 560);
@@ -70,7 +72,9 @@ ExceptionDialog::ExceptionDialog(QWidget *parent)
         QString("为指定日期的某个时段设置例外的分界时间与迟到时间。\n")
         + QString("「分界时间」为该时段结束、下一时段开始的时间；")
         + QString("「迟到时间」为该时段的签到截止时间。\n")
-        + QString("仅对所选日期生效，其他日期仍使用「设置迟到时间」中的全局配置。"),
+        + QString("仅对所选日期生效，其他日期仍使用「设置迟到时间」中的全局配置。\n")
+        + QString("例外是临时设置：只在本次「导出到 Rewardly」窗口内生效，"
+                  "不会写入 config.toml。"),
         this);
     titleLabel->setWordWrap(true);
     mainLayout->addWidget(titleLabel);
@@ -130,10 +134,10 @@ ExceptionDialog::ExceptionDialog(QWidget *parent)
 
     auto *buttonLayout = new QHBoxLayout();
     buttonLayout->addStretch();
-    auto *saveButton = new QPushButton(QString("保存"), this);
-    auto *closeButton = new QPushButton(QString("关闭"), this);
-    buttonLayout->addWidget(saveButton);
-    buttonLayout->addWidget(closeButton);
+    auto *okButton = new QPushButton(QString("确定"), this);
+    auto *cancelButton = new QPushButton(QString("取消"), this);
+    buttonLayout->addWidget(okButton);
+    buttonLayout->addWidget(cancelButton);
     mainLayout->addLayout(buttonLayout);
 
     connect(periodCombo, &QComboBox::currentTextChanged,
@@ -146,32 +150,26 @@ ExceptionDialog::ExceptionDialog(QWidget *parent)
             this, &ExceptionDialog::onTableSelectionChanged);
     connect(table, &QTableWidget::cellDoubleClicked,
             this, &ExceptionDialog::onTableDoubleClicked);
-    connect(saveButton, &QPushButton::released,
-            this, &ExceptionDialog::onSaveClicked);
-    connect(closeButton, &QPushButton::released,
+    connect(okButton, &QPushButton::released,
+            this, &ExceptionDialog::onAcceptClicked);
+    connect(cancelButton, &QPushButton::released,
             this, &ExceptionDialog::close);
 
-    loadExceptions();
+    // Show the exceptions the owner already has, then fill the editors with
+    // the global values of the currently selected period.
+    refreshTable();
     updateSplitEnabled();
 }
 
 ExceptionDialog::~ExceptionDialog() {}
 
-void ExceptionDialog::loadExceptions()
-{
-    ConfigData config = ConfigManager::loadConfig();
-    exceptions = config.exceptions;
-    sortExceptions(exceptions);
-    refreshTable();
-}
-
 void ExceptionDialog::refreshTable()
 {
-    sortExceptions(exceptions);
+    sortExceptions(list);
 
     const int previousRow = table->currentRow();
     table->setRowCount(0);
-    for (const auto &ex : exceptions) {
+    for (const auto &ex : list) {
         int r = table->rowCount();
         table->insertRow(r);
         table->setItem(r, 0, new QTableWidgetItem(
@@ -187,7 +185,7 @@ void ExceptionDialog::refreshTable()
                                   : QString("—")));
     }
 
-    statusLabel->setText(QString("共 %1 条例外设置").arg(exceptions.size()));
+    statusLabel->setText(QString("共 %1 条例外设置").arg(list.size()));
 
     if (previousRow >= 0 && previousRow < table->rowCount()) {
         table->selectRow(previousRow);
@@ -205,10 +203,10 @@ void ExceptionDialog::selectRow(int row)
 
 void ExceptionDialog::loadRowIntoEditors(int row)
 {
-    if (row < 0 || row >= table->rowCount() || row >= exceptions.size()) {
+    if (row < 0 || row >= table->rowCount() || row >= list.size()) {
         return;
     }
-    const PeriodException &ex = exceptions[row];
+    const PeriodException &ex = list[row];
     dateEdit->setDate(ex.date);
     periodCombo->setCurrentIndex(ex.period);
     if (ex.split.isValid()) {
@@ -273,25 +271,24 @@ void ExceptionDialog::onAddClicked()
         ? QTime()
         : splitEdit->time();
 
-    QVector<PeriodException> next = exceptions;
+    QVector<PeriodException> next = list;
     upsert(next, candidate);
 
     ConfigData probe = ConfigManager::loadConfig();
-    probe.exceptions = next;
-    const QString error = ConfigManager::validateExceptions(probe);
+    const QString error = ConfigManager::validateExceptions(probe, next);
     if (!error.isEmpty()) {
         QMessageBox::warning(this, QString("例外设置无效"), error,
                              QMessageBox::Ok);
         return;
     }
 
-    exceptions = next;
+    list = next;
     refreshTable();
 
     // Highlight the row that was just added/updated.
-    for (int r = 0; r < exceptions.size(); ++r) {
-        if (exceptions[r].date == candidate.date
-            && exceptions[r].period == candidate.period) {
+    for (int r = 0; r < list.size(); ++r) {
+        if (list[r].date == candidate.date
+            && list[r].period == candidate.period) {
             selectRow(r);
             break;
         }
@@ -301,18 +298,18 @@ void ExceptionDialog::onAddClicked()
 void ExceptionDialog::onRemoveClicked()
 {
     const int row = table->currentRow();
-    if (row < 0 || row >= exceptions.size()) {
+    if (row < 0 || row >= list.size()) {
         QMessageBox::information(this, QString("未选择例外"),
                                  QString("请先在列表中选择要删除的例外。"),
                                  QMessageBox::Ok);
         return;
     }
 
-    const PeriodException removed = exceptions[row];
-    exceptions.removeAt(row);
+    const PeriodException removed = list[row];
+    list.removeAt(row);
     refreshTable();
     statusLabel->setText(
-        QString("已移除 %1 %2 的例外（尚未保存）")
+        QString("已移除 %1 %2 的例外")
             .arg(removed.date.toString("yyyy-MM-dd"),
                  signPeriodName(removed.period)));
 }
@@ -328,23 +325,19 @@ void ExceptionDialog::onTableDoubleClicked(int row, int column)
     loadRowIntoEditors(row);
 }
 
-void ExceptionDialog::onSaveClicked()
+void ExceptionDialog::onAcceptClicked()
 {
     ConfigData config = ConfigManager::loadConfig();
-    config.exceptions = exceptions;
 
-    const QString error = ConfigManager::validateExceptions(config);
+    const QString error = ConfigManager::validateExceptions(config, list);
     if (!error.isEmpty()) {
         QMessageBox::warning(this, QString("例外设置无效"), error,
                              QMessageBox::Ok);
         return;
     }
 
-    ConfigManager::saveConfig(config);
-
-    QMessageBox::information(this,
-                             QString("保存成功"),
-                             QString("已保存 %1 条例外设置到 config.toml")
-                                 .arg(config.exceptions.size()),
-                             QMessageBox::Ok);
+    // One-off setting: hand the list to the owning window (in memory only)
+    // and close. Nothing is written to config.toml.
+    emit applied(list);
+    close();
 }

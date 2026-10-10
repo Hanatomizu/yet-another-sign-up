@@ -49,7 +49,8 @@ RewardlyExportDialog::RewardlyExportDialog(QWidget *parent)
         QString("选择日期范围，生成 Rewardly 加分数据。\n")
         + QString("导出内容：每日早上签到前N名（加分）+ 全部早/中/晚迟到、未签到（扣分）。\n")
         + QString("勾选左侧复选框选择要导出的记录，点击保存写入 Excel。\n")
-        + QString("若某天的时段分界或签到截止与平时不同，可点击「设置例外」按日期单独调整。"),
+        + QString("若某天的时段分界或签到截止与平时不同，可点击「设置例外」按日期临时调整"
+                  "（仅本次窗口有效，不写入配置）。"),
         this);
     titleLabel->setWordWrap(true);
     mainLayout->addWidget(titleLabel);
@@ -120,12 +121,26 @@ RewardlyExportDialog::~RewardlyExportDialog() {}
 
 void RewardlyExportDialog::onSetExceptionClicked()
 {
-    // Exceptions change how the selected date range is parsed (period
-    // boundaries + deadlines), so rebuild the table once they are closed.
-    auto *dlg = new ExceptionDialog(this);
+    // Opened as its own top-level window (no parent): a parented QWidget
+    // would be embedded into this window and painted over its contents.
+    auto *dlg = new ExceptionDialog(exceptions);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
-    connect(dlg, &QObject::destroyed, this, &RewardlyExportDialog::refreshData);
+    dlg->setWindowFlag(Qt::WindowStaysOnTopHint);
+    connect(dlg, &ExceptionDialog::applied,
+            this, &RewardlyExportDialog::onExceptionsApplied);
     dlg->show();
+}
+
+void RewardlyExportDialog::onExceptionsApplied(
+    const QVector<PeriodException> &next)
+{
+    // One-off, in-memory only: the list is kept for this window's lifetime
+    // and never saved to config.toml.
+    exceptions = next;
+
+    // The exceptions change how the selected date range is parsed (period
+    // boundaries + deadlines), so the table has to be rebuilt.
+    refreshData();
 }
 
 QVector<RewardlyRow> RewardlyExportDialog::buildRows(
@@ -240,7 +255,10 @@ void RewardlyExportDialog::refreshData()
             continue; // No log file for this date — skip
         }
 
-        QVector<SignRecord> records = parseSignLogFile(logFilePath, date, config);
+        // Pass the one-off exceptions so this day is parsed with any
+        // per-date 分界/迟到 overrides the user set for this window.
+        QVector<SignRecord> records =
+            parseSignLogFile(logFilePath, date, config, exceptions);
         if (records.isEmpty()) {
             continue;
         }

@@ -31,35 +31,6 @@
 
 namespace {
 
-/// Insert or replace the entry with the same (date, period) key.
-void upsertException(QVector<PeriodException> &list, const PeriodException &ex)
-{
-    for (auto &existing : list) {
-        if (existing.date == ex.date && existing.period == ex.period) {
-            existing = ex;
-            return;
-        }
-    }
-    list.append(ex);
-}
-
-/// Read a string value from a TOML table node, or an empty string.
-QString readTomlString(const toml::table &tbl, const char *key)
-{
-    auto view = tbl[key];
-    if (auto value = view.value<std::string>()) {
-        return QString::fromStdString(*value);
-    }
-    return QString();
-}
-
-/// Read an integer value from a TOML table node, or @p fallback.
-int64_t readTomlInt(const toml::table &tbl, const char *key, int64_t fallback)
-{
-    auto view = tbl[key];
-    return view.value<int64_t>().value_or(fallback);
-}
-
 /// Display name of a period index (duplicated on purpose: signlogparser.h
 /// includes configmanager.h, so configmanager cannot include it back).
 QString periodName(int period)
@@ -155,32 +126,6 @@ ConfigData ConfigManager::loadConfig()
             readDouble("evening_absent_deduction", config.eveningAbsentDeduction);
         }
 
-        // Read [[exceptions]] array of tables (设置例外)
-        if (auto exceptionsArr = tbl["exceptions"].as_array()) {
-            for (auto &&node : *exceptionsArr) {
-                const auto *exTbl = node.as_table();
-                if (!exTbl) {
-                    continue;
-                }
-
-                PeriodException ex;
-                ex.date = QDate::fromString(
-                    readTomlString(*exTbl, "date"), "yyyy-MM-dd");
-                ex.period = static_cast<int>(
-                    readTomlInt(*exTbl, "period", -1));
-                if (!ex.date.isValid() || ex.period < 0 || ex.period > 2) {
-                    qDebug() << "Skipping invalid [[exceptions]] entry";
-                    continue;
-                }
-
-                ex.split = QTime::fromString(
-                    readTomlString(*exTbl, "split"), "HH:mm");
-                ex.deadline = QTime::fromString(
-                    readTomlString(*exTbl, "deadline"), "HH:mm");
-                upsertException(config.exceptions, ex);
-            }
-        }
-
         qDebug() << "Config loaded from" << configPath;
     } catch (const toml::parse_error &e) {
         qDebug() << "Failed to parse config.toml:" << e.what()
@@ -235,28 +180,6 @@ void ConfigManager::saveConfig(const ConfigData &config)
     rewardlyTbl.insert("evening_absent_deduction", config.eveningAbsentDeduction);
     tbl.insert("rewardly", rewardlyTbl);
 
-    // [[exceptions]] section (设置例外): array of tables
-    toml::array exceptionsArr;
-    for (const auto &ex : config.exceptions) {
-        if (!ex.date.isValid() || ex.period < 0 || ex.period > 2) {
-            continue;
-        }
-        toml::table exTbl;
-        exTbl.insert("date", ex.date.toString("yyyy-MM-dd").toStdString());
-        exTbl.insert("period", static_cast<int64_t>(ex.period));
-        if (ex.split.isValid()) {
-            exTbl.insert("split", ex.split.toString("HH:mm").toStdString());
-        }
-        if (ex.deadline.isValid()) {
-            exTbl.insert("deadline",
-                         ex.deadline.toString("HH:mm").toStdString());
-        }
-        exceptionsArr.push_back(std::move(exTbl));
-    }
-    if (!exceptionsArr.empty()) {
-        tbl.insert("exceptions", std::move(exceptionsArr));
-    }
-
     std::ofstream file(configPath.toStdString());
     if (file.is_open()) {
         file << tbl;
@@ -295,21 +218,19 @@ ConfigData ConfigManager::defaultConfig()
     config.eveningLateDeduction = -1.0;
     config.eveningAbsentDeduction = -2.0;
 
-    // No per-date exceptions by default.
-    config.exceptions.clear();
     return config;
 }
 
-ConfigData ConfigManager::forDate(const ConfigData &config, const QDate &date)
+ConfigData ConfigManager::forDate(const ConfigData &config, const QDate &date,
+                                  const QVector<PeriodException> &exceptions)
 {
     ConfigData effective = config;
-    effective.exceptions.clear(); // the result already has them applied
 
     if (!date.isValid()) {
         return effective;
     }
 
-    for (const auto &ex : config.exceptions) {
+    for (const auto &ex : exceptions) {
         if (ex.date != date) {
             continue;
         }
@@ -343,11 +264,12 @@ ConfigData ConfigManager::forDate(const ConfigData &config, const QDate &date)
     return effective;
 }
 
-QString ConfigManager::validateExceptions(const ConfigData &config)
+QString ConfigManager::validateExceptions(
+    const ConfigData &config, const QVector<PeriodException> &exceptions)
 {
     // Collect the dates that actually have exceptions.
     QVector<QDate> dates;
-    for (const auto &ex : config.exceptions) {
+    for (const auto &ex : exceptions) {
         if (!ex.date.isValid() || ex.period < 0 || ex.period > 2) {
             return QString("例外设置包含无效的日期或时段。");
         }
@@ -357,7 +279,7 @@ QString ConfigManager::validateExceptions(const ConfigData &config)
     }
 
     for (const auto &date : dates) {
-        const ConfigData day = ConfigManager::forDate(config, date);
+        const ConfigData day = ConfigManager::forDate(config, date, exceptions);
         const QString dayStr = date.toString("yyyy-MM-dd");
 
         if (day.morningNoonSplit > day.noonEveningSplit) {
@@ -365,7 +287,7 @@ QString ConfigManager::validateExceptions(const ConfigData &config)
                 .arg(dayStr);
         }
 
-        for (const auto &ex : config.exceptions) {
+        for (const auto &ex : exceptions) {
             if (ex.date != date) {
                 continue;
             }

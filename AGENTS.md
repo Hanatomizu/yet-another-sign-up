@@ -40,14 +40,14 @@ cd build && ctest --output-on-failure
 | `mainwindow.*` | 主窗口：学号输入、屏幕数字键盘、公告栏、菜单 |
 | `signup.*` | 签到核心逻辑（Yasu 类）：学号解析、重复签到、写日志 |
 | `configmanager.*` | config.toml 读写、默认值、旧格式迁移、例外合并与校验 |
-| `signlogparser.*` | 共享日志解析：时段判定、状态判定、按日期套用例外 |
+| `signlogparser.*` | 共享日志解析：时段判定、状态判定、可选套用按日期例外 |
 | `adminpanel.*` | 管理页面；用代码动态添加各功能按钮 |
 | `arbiter.*` | 「查看数据」窗口：按时间分时段统计；同时定义全局量 |
 | `exportdialog.*` | 「导出数据」：前 10 名 + 迟到 + 未签到 → Excel |
 | `rewardlyexportdialog.*` | 「导出到 Rewardly」：加分/扣分行，勾选后导出 Excel |
 | `rewardlyconfigdialog.*` | 「配置加分项」（`[rewardly]` 段） |
 | `deadlinedialog.*` | 「设置迟到时间」（`[periods]` 段） |
-| `exceptiondialog.*` | 「设置例外」：按日期覆盖某时段的分界/迟到时间 |
+| `exceptiondialog.*` | 「设置例外」：按日期临时覆盖某时段的分界/迟到时间（仅内存） |
 | `tests/` | Qt Test 用例，覆盖非 UI 逻辑与各窗口的关键交互 |
 
 全局量：`std::vector<QString> extstunames`（下标 = 学号，0 为占位）与
@@ -79,8 +79,10 @@ config.toml 结构：
                 noon_evening_split / evening_deadline      # 'HH:mm'
 [rewardly]      morning_sign_bonus_count / morning_sign_bonus_score /
                 *_late_deduction / *_absent_deduction       # 加分正、扣分负
-[[exceptions]]  date / period(0/1/2) / split / deadline     # 按日期覆盖，可为空
 ```
+
+例外（设置例外）**不在 config.toml 中**：它是「导出到 Rewardly」窗口持有的
+一次性内存数据，见第 5 节。
 
 ## 5. 关键领域规则
 
@@ -90,10 +92,11 @@ config.toml 结构：
 - 状态判定：`time <= deadline` → `签到`，否则 `迟到`。
 - 例外（设置例外）：`split` 覆盖该时段结束的分界（早上 → `morning_noon_split`，
   中午 → `noon_evening_split`），`deadline` 覆盖该时段的截止时间。晚上是当天
-  最后一个时段，没有后续分界，其 `split` 无意义（界面禁用，存储时不写入）。
-  `ConfigManager::forDate(config, date)` 返回某天生效的配置；所有按日期解析
-  日志的地方（查看数据/导出数据/导出到 Rewardly）都通过 `parseSignLogFile*()`
-  自动获得该行为，不要绕过它。
+  最后一个时段，没有后续分界，其 `split` 无意义（界面禁用，也不存入列表）。
+  例外是**一次性内存数据**：只由「导出到 Rewardly」窗口持有，不写 config.toml，
+  关闭窗口即失效；因此 `ConfigManager::forDate(config, date, exceptions)` 与
+  `parseSignLogFile*(path, date, config, exceptions)` 都要求调用方**显式传入**列表
+  （默认空列表 = 不套用）。查看数据/导出数据窗口不传例外，仍按全局配置统计。
 - 早上加分只给早上时段 `签到` 的前 N 名（`morning_sign_bonus_count`）。
 - 未签到 = 该时段内没有任何记录；迟到也算"已签到"，不重复计未签到。
 - 分数为小数（2 位），正数加分、负数扣分，Excel 单元格用 `Format 0.00`。
@@ -115,7 +118,13 @@ config.toml 结构：
    dlg->show();
    ```
 
-   保存按钮沿用「保存 + 关闭」两个按钮，保存成功用 `QMessageBox::information` 提示。
+   ⚠️ 打开窗口时**不要传父对象**（`new XxxDialog(this)` 是错的）：带父对象的
+   `QWidget` 会变成父窗口的子控件、绘制在父窗口内容之上，而不是新窗口。
+
+   持久化配置的窗口（如 `deadlinedialog.*`、`rewardlyconfigdialog.*`）用
+   「保存 + 关闭」，保存成功用 `QMessageBox::information` 提示；一次性设置的
+   窗口（如 `exceptiondialog.*`）用「确定 / 取消」，由「确定」发出信号把结果
+   交回调用方（不要写 config.toml）。
 4. 可测试性：把纯逻辑写成 static 公有函数（参考
    `RewardlyExportDialog::buildRows`），UI 只做取值/展示，这样测试不需要弹窗。
 5. 测试：`tests/CMakeLists.txt` 中每个用例是一个可执行目标，链接它所需的 .cpp
@@ -137,7 +146,8 @@ config.toml 结构：
   （y 每行 +40）并连接 slot；或在具体窗口内加按钮（如
   `rewardlyexportdialog.cpp` 的「设置例外」）。
 - 改时段/迟到判定：只改 `signlogparser.*`，并同步 `ConfigManager::forDate()`
-  的例外覆盖与测试；不要在 UI 里复制一份判定逻辑。
+  与 `validateExceptions()`（两者都接收显式的例外列表）及测试；不要在 UI 里
+  复制一份判定逻辑。
 
 ## 8. 已知坑
 
@@ -145,7 +155,9 @@ config.toml 结构：
   config.toml，务必让测试自己清理。
 - `parseSignLogFileAll()` 的 `date` 参数决定"哪一天的例外生效"；直接调用
   `determineSignPeriod`/`determineSignStatus` 时不会自动套用例外。
+- 例外不落盘：它必须由调用方（目前是「导出到 Rewardly」窗口）以
+  `QVector<PeriodException>` 显式传给 `parseSignLogFile*()`；config.toml 中出现
+  `[[exceptions]]` 会被忽略，也不要在其中写入例外。
 - QTime 比较用 `<=`：分界时刻归属前一时段，写测试时注意边界。
 - `main.cpp` 的单实例锁（QLocalServer 名字 `Hanatomizu_Yetanothersignup`）会阻止
   同时运行两个实例；做手动 UI 验证前确认已关闭旧实例。
-- `[[exceptions]]` 中同一「日期 + 时段」只保留最后一条（加载与界面均按此规则覆盖）。
