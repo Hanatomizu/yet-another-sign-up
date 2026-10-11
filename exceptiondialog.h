@@ -58,6 +58,14 @@ public:
     /// Exceptions currently listed in the table.
     QVector<PeriodException> exceptions() const { return list; }
 
+public slots:
+    // Public so tests can drive them directly. MSVC mangles member access
+    // into symbol names, so a test TU that re-exposes private members via
+    // `#define private public` cannot link against private functions.
+    void onAddClicked();
+    void onRemoveClicked();
+    void onAcceptClicked();
+
 signals:
     /**
      * @brief Emitted right before the window closes with the edited list.
@@ -68,11 +76,8 @@ signals:
 
 private slots:
     void onPeriodChanged();
-    void onAddClicked();
-    void onRemoveClicked();
     void onTableSelectionChanged();
     void onTableDoubleClicked(int row, int column);
-    void onAcceptClicked();
 
 private:
     QDateEdit *dateEdit;

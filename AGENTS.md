@@ -130,9 +130,13 @@ config.toml 结构：
 5. 测试：`tests/CMakeLists.txt` 中每个用例是一个可执行目标，链接它所需的 .cpp
    （例如 `test_rewardly` 同时链接 `exceptiondialog.cpp`）。测试文件末尾用
    `QTEST_MAIN`（需要 Widgets）或 `QTEST_GUILESS_MAIN`（纯逻辑）。仅测试 UI
-   内部状态时才使用仓库既有的 `#define private public` 技巧（需先包含相关 Qt
-   头文件），并且避免触发模态 `QMessageBox`，否则 offscreen 下会阻塞
-   （只测不会弹窗的路径）。
+   内部状态（私有**数据成员**）时才使用 `#define private public` 技巧（需先
+   包含相关 Qt 头文件）；不要用它在测试里跨编译单元调用私有**成员函数**——
+   MSVC 会把访问权限编进符号名，测试引用的是重定义后的 public 符号而定义处
+   是 private 符号，Windows 上会 LNK2019（GCC/Clang 不编码访问权限，本地看不
+   出来）。被测试直接调用的成员函数（如 `ExceptionDialog::onAddClicked`、
+   `ExportDialog::exportToExcel`）应声明为 public。测试还要避免触发模态
+   `QMessageBox`，否则 offscreen 下会阻塞（只测不会弹窗的路径）。
 6. 新增源文件：加入 `CMakeLists.txt` 的 `PROJECT_SOURCES`；若被某个测试目标链接
    的 .cpp 引用，也要加入 `tests/CMakeLists.txt` 对应目标，否则会链接失败。
 7. 提交信息：Conventional Commits，英文类型 + 简短描述，

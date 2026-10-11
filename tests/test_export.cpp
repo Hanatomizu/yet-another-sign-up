@@ -1,10 +1,6 @@
 /**
  * Unit tests for the export parsing logic (signlogparser.cpp) and the
  * Excel export pipeline (exportdialog.cpp).
- *
- * exportToExcel() is private, so this file temporarily re-exposes it with
- * the classic `#define private public` trick. The production sources are
- * compiled unchanged.
  */
 
 #include <QtTest>
@@ -17,19 +13,7 @@
 
 #include "xlsxdocument.h"
 
-// Pre-include everything exportdialog.h pulls in so it is not re-parsed
-// while `private` is redefined.
-#include <QString>
-#include <QTime>
-#include <QDate>
-#include <QVector>
-#include <QWidget>
-#include <QDateEdit>
-#include <QPushButton>
-
-#define private public
 #include "exportdialog.h"
-#undef private
 
 // Exported functions reference these globals (normally defined in arbiter.cpp).
 std::vector<QString> extstunames;

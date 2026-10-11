@@ -3,8 +3,11 @@
  *
  * The window edits a one-off, in-memory exception list and hands it back via
  * applied(); nothing is written to config.toml. The tests drive its widgets
- * directly (the class members are re-exposed with the same
- * `#define private public` trick used by test_export/test_arbiter).
+ * directly, so private *data members* are re-exposed with the classic
+ * `#define private public` trick. The member *functions* the tests call
+ * (onAddClicked / onRemoveClicked / onAcceptClicked) are public: MSVC
+ * mangles member access into symbol names, so calling a private function
+ * from a different translation unit would fail to link on Windows.
  *
  * Only paths that do not raise a modal message box are exercised:
  * constructing/loading, adding a valid entry, replacing one, and removing a
@@ -29,6 +32,8 @@
 #include <QTableWidget>
 #include <QLabel>
 
+// Only re-exposes private data members; see the file header for why the
+// functions under test are public instead.
 #define private public
 #include "exceptiondialog.h"
 #undef private

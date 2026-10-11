@@ -50,13 +50,6 @@ public:
     explicit ExportDialog(QWidget *parent = nullptr);
     ~ExportDialog();
 
-private slots:
-    void onExportClicked();
-
-private:
-    QDateEdit *startDateEdit;
-    QDateEdit *endDateEdit;
-
     /**
      * @brief Run the full export pipeline.
      * @param startDate Beginning of date range (inclusive).
@@ -66,6 +59,13 @@ private:
      */
     bool exportToExcel(const QDate &startDate, const QDate &endDate,
                        const QString &filePath);
+
+private slots:
+    void onExportClicked();
+
+private:
+    QDateEdit *startDateEdit;
+    QDateEdit *endDateEdit;
 };
 
 #endif // EXPORTDIALOG_H
