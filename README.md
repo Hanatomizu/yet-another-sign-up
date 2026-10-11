@@ -179,6 +179,19 @@ cmake --build build -j
 
 > 首次运行会在程序目录生成默认 `config.toml`、`logs/`、`data/`；请确保程序目录有写入权限，并在程序目录放置 `names` 学生名单文件。
 
+## 发布版本（Releases）
+
+推送形如 `v0.4.0` 的 tag 会触发 GitHub Actions（`.github/workflows/release.yml`）
+自动构建并发布两个产物：
+
+| 产物 | 说明 |
+| --- | --- |
+| `yet-another-sign-up-<版本>-windows-x64.zip` | Windows 64 位。已用 `windeployqt` 打包全部 Qt 动态库、平台插件与 MSVC 运行时，解压到任意目录即可在未安装 Qt 的新电脑上直接运行 |
+| `yet-another-sign-up-<版本>-linux-x86_64.tar.gz` | Linux 64 位。内含 Qt 运行库与插件，解压后运行目录中的 `run.sh` |
+
+> 程序把 `names`、`config.toml`、`logs/`、`data/` 都保存在可执行文件所在目录，
+> 因此请解压到有写入权限的目录，不要放在只读位置。
+
 ## 测试
 
 测试基于 Qt Test，无界面运行（`QT_QPA_PLATFORM=offscreen`）：

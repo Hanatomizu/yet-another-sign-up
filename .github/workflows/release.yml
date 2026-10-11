@@ -1,0 +1,228 @@
+# 构建并发布 Yasu。
+#
+# - 推送形如 v0.4.0 的 tag：构建 Windows / Linux 产物并创建 GitHub Release；
+# - 手动触发（workflow_dispatch）：只构建并上传 workflow artifacts，不创建 Release。
+#
+# Windows 产物使用 windeployqt 打包全部 Qt 动态库、平台插件与 MSVC 运行时
+# （--compiler-runtime），解压后即可在未安装 Qt 的 Windows x64 电脑上运行。
+# Linux 产物为 tar.gz，内含 Qt 运行库与插件，解压到可写目录后运行 run.sh。
+
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  QT_VERSION: '6.8.3'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Windows x64：MSVC + windeployqt，自包含 zip
+  # ---------------------------------------------------------------------------
+  build-windows:
+    name: Windows x64
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: win64_msvc2022_64
+          cache: true
+
+      - name: Get version from CMakeLists.txt
+        id: version
+        shell: bash
+        run: |
+          version=$(sed -n 's/^project([^)]*VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLists.txt)
+          echo "Project version: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Configure
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Run tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Package (Qt DLLs + MSVC runtime)
+        shell: pwsh
+        run: |
+          $dist = "dist/yet-another-sign-up"
+          New-Item -ItemType Directory -Force -Path $dist | Out-Null
+
+          Copy-Item "build/Release/yet-another-sign-up.exe" $dist
+
+          # 部署所有 Qt 动态库（Qt6Core/Gui/Widgets/Network 等）、
+          # platforms/styles/imageformats/tls 等插件，以及 MSVC 运行时
+          windeployqt --release --compiler-runtime --no-translations "$dist/yet-another-sign-up.exe"
+
+          # 随包附带：许可证、说明、名单模板（首次运行会自动生成 config.toml / logs / data）
+          Copy-Item LICENSE, README.md, names $dist
+
+          # 自检：缺少关键 DLL/插件时直接失败，避免发出跑不起来的包
+          foreach ($required in @("Qt6Core.dll", "Qt6Gui.dll", "Qt6Widgets.dll", "qwindows.dll")) {
+            $found = Get-ChildItem -Path $dist -Recurse -Filter $required
+            if (-not $found) { throw "windeployqt 未部署 $required" }
+          }
+          Get-ChildItem $dist -File | Select-Object -ExpandProperty Name
+
+          $zip = "yet-another-sign-up-${{ steps.version.outputs.version }}-windows-x64.zip"
+          Compress-Archive -Path "$dist/*" -DestinationPath $zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: yet-another-sign-up-*-windows-x64.zip
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Linux x86_64：linuxdeploy 收集 Qt 库与插件，自包含 tar.gz
+  # ---------------------------------------------------------------------------
+  build-linux:
+    name: Linux x86_64
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: linux_gcc_64
+          cache: true
+
+      - name: Get version from CMakeLists.txt
+        id: version
+        shell: bash
+        run: |
+          version=$(sed -n 's/^project([^)]*VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLists.txt)
+          echo "Project version: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Package (Qt libs + plugins in tar.gz)
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -eux
+
+          # linuxdeploy 需要 desktop 文件与 png 图标；xcb 相关运行时库保证被完整收集
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick libxcb-cursor0 libxcb-xinerama0 libxkbcommon-x11-0
+
+          mkdir -p packaging
+          wget -q -O packaging/linuxdeploy \
+            https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget -q -O packaging/linuxdeploy-plugin-qt \
+            https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x packaging/linuxdeploy packaging/linuxdeploy-plugin-qt
+
+          cat > packaging/yet-another-sign-up.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=Yet Another Sign Up
+          Name[zh_CN]=班级签到系统
+          Comment=Sign-up system for class management
+          Exec=yet-another-sign-up
+          Icon=yet-another-sign-up
+          Categories=Education;
+          Terminal=false
+          EOF
+
+          convert 'favicon.ico[0]' -resize 256x256 packaging/yet-another-sign-up.png
+
+          export PATH="$PWD/packaging:$PATH"
+          ./packaging/linuxdeploy --appdir AppDir \
+            --executable build/yet-another-sign-up \
+            --desktop-file packaging/yet-another-sign-up.desktop \
+            --icon-file packaging/yet-another-sign-up.png \
+            --plugin qt
+
+          # 程序把 config.toml / logs / data 写在可执行文件旁，AppImage 只读挂载不可用，
+          # 因此发布解压即用的目录（linuxdeploy 生成的 AppDir 已带 rpath 与 qt.conf）
+          pkg="yet-another-sign-up-${VERSION}-linux-x86_64"
+          rm -rf "$pkg"
+          cp -a AppDir "$pkg"
+
+          # 兜底：确保插件路径可用（Qt 6 忽略 QT_PLUGIN_PATH，依赖 exe 旁的 qt.conf）
+          if [ ! -f "$pkg/usr/bin/qt.conf" ]; then
+            printf '[Paths]\nPrefix = ..\nPlugins = plugins\n' > "$pkg/usr/bin/qt.conf"
+          fi
+
+          cat > "$pkg/run.sh" <<'EOF'
+          #!/bin/sh
+          # 启动 Yasu；config.toml / logs / data 会保存在本目录，请确保目录可写。
+          exec "$(dirname "$0")/usr/bin/yet-another-sign-up" "$@"
+          EOF
+          chmod +x "$pkg/run.sh"
+
+          cp LICENSE README.md names "$pkg/"
+          tar -czf "${pkg}.tar.gz" "$pkg"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: yet-another-sign-up-*-linux-x86_64.tar.gz
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # 汇总并发布 Release（仅 tag 触发）
+  # ---------------------------------------------------------------------------
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify tag matches project version
+        run: |
+          version=$(sed -n 's/^project([^)]*VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLists.txt)
+          tag="${GITHUB_REF_NAME#v}"
+          echo "tag=$tag project_version=$version"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME 与 CMakeLists.txt 中的版本 $version 不一致"
+            exit 1
+          fi
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Yasu ${{ github.ref_name }}
+          files: artifacts/*
+          fail_on_unmatched_files: true
+          generate_release_notes: true
