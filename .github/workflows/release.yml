@@ -64,17 +64,30 @@ jobs:
 
           Copy-Item "build/Release/yet-another-sign-up.exe" $dist
 
-          # 部署所有 Qt 动态库（Qt6Core/Gui/Widgets/Network 等）、
-          # platforms/styles/imageformats/tls 等插件，以及 MSVC 运行时
+          # 部署所有 Qt 动态库（Qt6Core/Gui/Widgets/Network 等）与
+          # platforms/styles/imageformats/tls 等插件
           windeployqt --release --compiler-runtime --no-translations "$dist/yet-another-sign-up.exe"
+
+          # MSVC 运行库（msvcp140/vcruntime140 等）：windeployqt 的
+          # --compiler-runtime 依赖 VCINSTALLDIR/VCToolsRedistDir 环境变量，
+          # CI 里没有 vcvars 环境，会静默跳过，所以显式从 VS 的 redist
+          # 目录复制一份，保证新电脑上无需安装 VC++ Redistributable。
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $crtDir = Get-ChildItem -Path "$vsPath\VC\Redist\MSVC\*\x64\Microsoft.VC*.CRT" -Directory |
+                    Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $crtDir) { throw "找不到 VS 的 MSVC CRT redist 目录（VS: $vsPath）" }
+          Copy-Item "$($crtDir.FullName)\*.dll" $dist -Force
 
           # 随包附带：许可证、说明、名单模板（首次运行会自动生成 config.toml / logs / data）
           Copy-Item LICENSE, README.md, names $dist
 
           # 自检：缺少关键 DLL/插件时直接失败，避免发出跑不起来的包
-          foreach ($required in @("Qt6Core.dll", "Qt6Gui.dll", "Qt6Widgets.dll", "qwindows.dll")) {
-            $found = Get-ChildItem -Path $dist -Recurse -Filter $required
-            if (-not $found) { throw "windeployqt 未部署 $required" }
+          $required = @("Qt6Core.dll", "Qt6Gui.dll", "Qt6Widgets.dll", "qwindows.dll",
+                        "msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
+          foreach ($dll in $required) {
+            $found = Get-ChildItem -Path $dist -Recurse -Filter $dll
+            if (-not $found) { throw "缺少 $dll" }
           }
           Get-ChildItem $dist -File | Select-Object -ExpandProperty Name
 
