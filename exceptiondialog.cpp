@@ -25,6 +25,7 @@
 #include <QFormLayout>
 #include <QHeaderView>
 #include <QMessageBox>
+#include <QSignalBlocker>
 #include <QAbstractItemView>
 #include <algorithm>
 
@@ -62,7 +63,7 @@ ExceptionDialog::ExceptionDialog(const QVector<PeriodException> &initial,
     , list(initial)
 {
     setWindowTitle(QString("设置例外"));
-    setFixedSize(660, 560);
+    setFixedSize(700, 600);
 
     auto *mainLayout = new QVBoxLayout(this);
     mainLayout->setSpacing(10);
@@ -72,6 +73,7 @@ ExceptionDialog::ExceptionDialog(const QVector<PeriodException> &initial,
         QString("为指定日期的某个时段设置例外的分界时间与迟到时间。\n")
         + QString("「分界时间」为该时段结束、下一时段开始的时间；")
         + QString("「迟到时间」为该时段的签到截止时间。\n")
+        + QString("勾选「忽略该时段」后，该时段当天不生成任何加分/迟到/未签到记录。\n")
         + QString("仅对所选日期生效，其他日期仍使用「设置迟到时间」中的全局配置。\n")
         + QString("例外是临时设置：只在本次「导出到 Rewardly」窗口内生效，"
                   "不会写入 config.toml。"),
@@ -94,6 +96,10 @@ ExceptionDialog::ExceptionDialog(const QVector<PeriodException> &initial,
     periodCombo->addItem(QString("中午"));
     periodCombo->addItem(QString("晚上"));
     formLayout->addRow(QString("时段:"), periodCombo);
+
+    ignoreCheck = new QCheckBox(
+        QString("忽略该时段（当天不生成加分/迟到/未签到记录）"), this);
+    formLayout->addRow(ignoreCheck);
 
     splitEdit = new QTimeEdit(this);
     splitEdit->setDisplayFormat("HH:mm");
@@ -118,10 +124,10 @@ ExceptionDialog::ExceptionDialog(const QVector<PeriodException> &initial,
     mainLayout->addLayout(editButtonLayout);
 
     // Exception list
-    table = new QTableWidget(0, 4, this);
+    table = new QTableWidget(0, 5, this);
     table->setHorizontalHeaderLabels(
         {QString("日期"), QString("时段"), QString("分界时间"),
-         QString("迟到时间")});
+         QString("迟到时间"), QString("忽略")});
     table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     table->verticalHeader()->setVisible(false);
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -141,6 +147,8 @@ ExceptionDialog::ExceptionDialog(const QVector<PeriodException> &initial,
     mainLayout->addLayout(buttonLayout);
 
     connect(periodCombo, &QComboBox::currentTextChanged,
+            this, &ExceptionDialog::onPeriodChanged);
+    connect(ignoreCheck, &QCheckBox::toggled,
             this, &ExceptionDialog::onPeriodChanged);
     connect(addButton, &QPushButton::released,
             this, &ExceptionDialog::onAddClicked);
@@ -177,12 +185,15 @@ void ExceptionDialog::refreshTable()
         table->setItem(r, 1, new QTableWidgetItem(
             signPeriodName(ex.period)));
         table->setItem(r, 2, new QTableWidgetItem(
-            (ex.period == 2 || !ex.split.isValid())
+            (ex.ignore || ex.period == 2 || !ex.split.isValid())
                 ? QString("—")
                 : ex.split.toString("HH:mm")));
         table->setItem(r, 3, new QTableWidgetItem(
-            ex.deadline.isValid() ? ex.deadline.toString("HH:mm")
-                                  : QString("—")));
+            (ex.ignore || !ex.deadline.isValid())
+                ? QString("—")
+                : ex.deadline.toString("HH:mm")));
+        table->setItem(r, 4, new QTableWidgetItem(
+            ex.ignore ? QString("是") : QString("—")));
     }
 
     statusLabel->setText(QString("共 %1 条例外设置").arg(list.size()));
@@ -207,22 +218,43 @@ void ExceptionDialog::loadRowIntoEditors(int row)
         return;
     }
     const PeriodException &ex = list[row];
-    dateEdit->setDate(ex.date);
-    periodCombo->setCurrentIndex(ex.period);
-    if (ex.split.isValid()) {
-        splitEdit->setTime(ex.split);
+    {
+        // Set date/period/ignore without triggering updateSplitEnabled():
+        // the stored times must win over the global defaults it loads.
+        const QSignalBlocker blockPeriod(periodCombo);
+        const QSignalBlocker blockIgnore(ignoreCheck);
+        dateEdit->setDate(ex.date);
+        periodCombo->setCurrentIndex(ex.period);
+        ignoreCheck->setChecked(ex.ignore);
     }
-    if (ex.deadline.isValid()) {
-        deadlineEdit->setTime(ex.deadline);
+
+    updateSplitEnabled();
+    if (!ex.ignore) {
+        if (ex.split.isValid()) {
+            splitEdit->setTime(ex.split);
+        }
+        if (ex.deadline.isValid()) {
+            deadlineEdit->setTime(ex.deadline);
+        }
     }
-    // Note: switching the combo above already refreshed the enabled state and
-    // the hint via updateSplitEnabled(); the times set here must win, so the
-    // helper is deliberately not called again.
 }
 
 void ExceptionDialog::updateSplitEnabled()
 {
     const int period = periodCombo->currentIndex();
+
+    // An ignored period has no boundary or deadline: it produces no Rewardly
+    // rows at all, so both time inputs are disabled.
+    if (ignoreCheck->isChecked()) {
+        splitEdit->setEnabled(false);
+        deadlineEdit->setEnabled(false);
+        hintLabel->setText(
+            QString("已忽略该时段：该日期该时段当天不生成任何加分/迟到/未签到记录，"
+                    "无需设置分界时间或迟到时间。"));
+        return;
+    }
+
+    deadlineEdit->setEnabled(true);
 
     // Defaults come from the global [periods] configuration; switching the
     // period reloads that period's global values so the user has a starting
@@ -265,11 +297,20 @@ void ExceptionDialog::onAddClicked()
     PeriodException candidate;
     candidate.date = dateEdit->date();
     candidate.period = periodCombo->currentIndex();
-    candidate.deadline = deadlineEdit->time();
-    // 晚上 has no boundary after it; keep the value invalid so it is ignored.
-    candidate.split = (candidate.period == 2)
-        ? QTime()
-        : splitEdit->time();
+    candidate.ignore = ignoreCheck->isChecked();
+
+    if (candidate.ignore) {
+        // An ignored period has no boundary/deadline to store.
+        candidate.split = QTime();
+        candidate.deadline = QTime();
+    } else {
+        candidate.deadline = deadlineEdit->time();
+        // 晚上 has no boundary after it; keep the value invalid so it is
+        // ignored.
+        candidate.split = (candidate.period == 2)
+            ? QTime()
+            : splitEdit->time();
+    }
 
     QVector<PeriodException> next = list;
     upsert(next, candidate);

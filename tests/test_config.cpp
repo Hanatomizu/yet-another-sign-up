@@ -39,6 +39,9 @@ private slots:
     void exceptionsAreNotPersisted();
     void forDateAppliesExceptions();
     void validateExceptionsChecksOrdering();
+    void ignoredPeriodLeavesConfigUntouched();
+    void ignoredPeriodsForDateFiltersByDate();
+    void validateExceptionsAcceptsIgnoredPeriod();
 };
 
 void TestConfig::init()
@@ -302,6 +305,98 @@ void TestConfig::validateExceptionsChecksOrdering()
     PeriodException goodMorning = lateMorning;
     goodMorning.split = QTime(13, 0);
     QVERIFY(ConfigManager::validateExceptions(cfg, {goodMorning}).isEmpty());
+}
+
+void TestConfig::ignoredPeriodLeavesConfigUntouched()
+{
+    ConfigData cfg = ConfigManager::defaultConfig();
+
+    PeriodException ignored;
+    ignored.date = QDate(2026, 10, 1);
+    ignored.period = 0;
+    ignored.ignore = true;
+    // A stale split/deadline on an ignored entry must not leak into the
+    // day's effective configuration.
+    ignored.split = QTime(13, 0);
+    ignored.deadline = QTime(10, 30);
+
+    ConfigData day = ConfigManager::forDate(cfg, ignored.date, {ignored});
+    QCOMPARE(day.morningNoonSplit, cfg.morningNoonSplit);
+    QCOMPARE(day.morningDeadline, cfg.morningDeadline);
+    QCOMPARE(day.noonEveningSplit, cfg.noonEveningSplit);
+    QCOMPARE(day.noonDeadline, cfg.noonDeadline);
+    QCOMPARE(day.eveningDeadline, cfg.eveningDeadline);
+}
+
+void TestConfig::ignoredPeriodsForDateFiltersByDate()
+{
+    const QDate date(2026, 10, 1);
+
+    PeriodException morning;
+    morning.date = date;
+    morning.period = 0;
+    morning.ignore = true;
+
+    PeriodException evening;
+    evening.date = date;
+    evening.period = 2;
+    evening.ignore = true;
+
+    PeriodException otherDay;
+    otherDay.date = QDate(2026, 10, 2);
+    otherDay.period = 1;
+    otherDay.ignore = true;
+
+    PeriodException active;
+    active.date = date;
+    active.period = 1;
+    active.deadline = QTime(12, 30);   // not ignored
+
+    const QVector<PeriodException> exceptions = {morning, evening, otherDay,
+                                                 active};
+
+    const QSet<int> ignored =
+        ConfigManager::ignoredPeriodsForDate(date, exceptions);
+    QCOMPARE(int(ignored.size()), 2);
+    QVERIFY(ignored.contains(0));
+    QVERIFY(ignored.contains(2));
+    QVERIFY(!ignored.contains(1));
+
+    // Other dates only see their own ignored periods.
+    const QSet<int> secondDay =
+        ConfigManager::ignoredPeriodsForDate(QDate(2026, 10, 2), exceptions);
+    QCOMPARE(int(secondDay.size()), 1);
+    QVERIFY(secondDay.contains(1));
+
+    // Dates without exceptions and invalid dates have nothing to ignore.
+    QVERIFY(ConfigManager::ignoredPeriodsForDate(QDate(2026, 10, 3),
+                                                 exceptions).isEmpty());
+    QVERIFY(ConfigManager::ignoredPeriodsForDate(QDate(), exceptions).isEmpty());
+}
+
+void TestConfig::validateExceptionsAcceptsIgnoredPeriod()
+{
+    ConfigData cfg = ConfigManager::defaultConfig();
+
+    PeriodException ignored;
+    ignored.date = QDate(2026, 10, 1);
+    ignored.period = 0;
+    ignored.ignore = true;
+    // Time fields carry no meaning for an ignored period, so a
+    // deadline later than the split must not be rejected.
+    ignored.split = QTime(11, 0);
+    ignored.deadline = QTime(11, 30);
+
+    QVERIFY(ConfigManager::validateExceptions(cfg, {ignored}).isEmpty());
+
+    // Date/period validity is still enforced for ignored entries.
+    PeriodException badDate = ignored;
+    badDate.date = QDate();
+    QVERIFY(!ConfigManager::validateExceptions(cfg, {badDate}).isEmpty());
+
+    PeriodException badPeriod = ignored;
+    badPeriod.period = 3;
+    QVERIFY(!ConfigManager::validateExceptions(cfg, {badPeriod}).isEmpty());
 }
 
 QTEST_GUILESS_MAIN(TestConfig)

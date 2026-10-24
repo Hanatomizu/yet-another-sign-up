@@ -23,6 +23,7 @@
 #include <QWidget>
 #include <QDateEdit>
 #include <QComboBox>
+#include <QCheckBox>
 #include <QTimeEdit>
 #include <QPushButton>
 #include <QTableWidget>
@@ -45,6 +46,11 @@
  *
  * 晚上 is the last period of the day, so it has no following boundary:
  * its 分界时间 input is disabled and only the 迟到时间 applies.
+ *
+ * A period can also be ignored entirely (忽略该时段) for that date: the
+ * ignored period produces no Rewardly rows at all — no 早上签到 bonus, no
+ * 迟到 and no 未签到 deduction. The 分界时间/迟到时间 inputs are disabled
+ * in that case and the entry stores no times.
  */
 class ExceptionDialog : public QWidget
 {
@@ -82,6 +88,7 @@ private slots:
 private:
     QDateEdit *dateEdit;
     QComboBox *periodCombo;
+    QCheckBox *ignoreCheck;
     QTimeEdit *splitEdit;
     QTimeEdit *deadlineEdit;
     QLabel *hintLabel;

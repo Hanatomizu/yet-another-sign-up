@@ -24,9 +24,11 @@
 #include <QDate>
 #include <QTime>
 #include <QVector>
+#include <QSet>
 #include <QWidget>
 #include <QDateEdit>
 #include <QComboBox>
+#include <QCheckBox>
 #include <QTimeEdit>
 #include <QPushButton>
 #include <QTableWidget>
@@ -54,6 +56,9 @@ private slots:
     void sortedByDateThenPeriod();
     void acceptEmitsAppliedList();
     void cancelKeepsOwnerListUnchanged();
+    void ignoreDisablesTimeEditorsAndShowsFlag();
+    void loadingIgnoredRowRestoresState();
+    void replaceIgnoredWithTimesKeepsSingleRow();
 };
 
 void TestExceptionDialog::init()
@@ -220,6 +225,93 @@ void TestExceptionDialog::cancelKeepsOwnerListUnchanged()
     QVERIFY(!emitted);
     // The owner's list is untouched: only the window's own copy changed.
     QCOMPARE(existing.split, QTime(17, 30));
+}
+
+void TestExceptionDialog::ignoreDisablesTimeEditorsAndShowsFlag()
+{
+    ExceptionDialog dlg({});
+
+    dlg.dateEdit->setDate(QDate(2026, 10, 8));
+    dlg.periodCombo->setCurrentIndex(0);   // 早上
+    dlg.ignoreCheck->setChecked(true);
+
+    QVERIFY(!dlg.splitEdit->isEnabled());
+    QVERIFY(!dlg.deadlineEdit->isEnabled());
+    QVERIFY(dlg.hintLabel->text().contains(QString("已忽略")));
+
+    dlg.onAddClicked();
+
+    QCOMPARE(int(dlg.list.size()), 1);
+    QVERIFY(dlg.list[0].ignore);
+    QVERIFY(!dlg.list[0].split.isValid());
+    QVERIFY(!dlg.list[0].deadline.isValid());
+
+    QCOMPARE(dlg.table->rowCount(), 1);
+    QCOMPARE(dlg.table->item(0, 2)->text(), QString("—"));
+    QCOMPARE(dlg.table->item(0, 3)->text(), QString("—"));
+    QCOMPARE(dlg.table->item(0, 4)->text(), QString("是"));
+}
+
+void TestExceptionDialog::loadingIgnoredRowRestoresState()
+{
+    PeriodException ignored;
+    ignored.date = QDate(2026, 10, 9);
+    ignored.period = 1;   // 中午
+    ignored.ignore = true;
+
+    ExceptionDialog dlg({ignored});
+
+    // Double-clicking the row loads it into the editors. Invoke the private
+    // slot through the meta-object: calling a private member function from
+    // another translation unit would fail to link on MSVC.
+    QVERIFY(QMetaObject::invokeMethod(&dlg, "onTableDoubleClicked",
+                                      Q_ARG(int, 0), Q_ARG(int, 0)));
+
+    QVERIFY(dlg.ignoreCheck->isChecked());
+    QCOMPARE(dlg.dateEdit->date(), QDate(2026, 10, 9));
+    QCOMPARE(dlg.periodCombo->currentIndex(), 1);
+    QVERIFY(!dlg.splitEdit->isEnabled());
+    QVERIFY(!dlg.deadlineEdit->isEnabled());
+
+    // Unchecking returns to the normal noon editors.
+    dlg.ignoreCheck->setChecked(false);
+    QVERIFY(dlg.splitEdit->isEnabled());
+    QVERIFY(dlg.deadlineEdit->isEnabled());
+    QVERIFY(dlg.hintLabel->text().contains(QString("中午")));
+}
+
+void TestExceptionDialog::replaceIgnoredWithTimesKeepsSingleRow()
+{
+    ExceptionDialog dlg({});
+
+    dlg.dateEdit->setDate(QDate(2026, 10, 10));
+    dlg.periodCombo->setCurrentIndex(0);
+    dlg.ignoreCheck->setChecked(true);
+    dlg.onAddClicked();
+    QCOMPARE(dlg.table->rowCount(), 1);
+    QVERIFY(dlg.list[0].ignore);
+
+    // Same date + period, now with normal times: replaces the ignore entry.
+    dlg.ignoreCheck->setChecked(false);
+    dlg.splitEdit->setTime(QTime(12, 30));
+    dlg.deadlineEdit->setTime(QTime(9, 30));
+    dlg.onAddClicked();
+
+    QCOMPARE(dlg.table->rowCount(), 1);
+    QCOMPARE(int(dlg.list.size()), 1);
+    QVERIFY(!dlg.list[0].ignore);
+    QCOMPARE(dlg.list[0].deadline, QTime(9, 30));
+    QCOMPARE(dlg.table->item(0, 4)->text(), QString("—"));
+
+    // And back to ignore: the time entry is replaced again.
+    dlg.ignoreCheck->setChecked(true);
+    dlg.onAddClicked();
+
+    QCOMPARE(dlg.table->rowCount(), 1);
+    QCOMPARE(int(dlg.list.size()), 1);
+    QVERIFY(dlg.list[0].ignore);
+    QVERIFY(!dlg.list[0].deadline.isValid());
+    QCOMPARE(dlg.table->item(0, 4)->text(), QString("是"));
 }
 
 QTEST_MAIN(TestExceptionDialog)

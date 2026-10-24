@@ -47,7 +47,7 @@ cd build && ctest --output-on-failure
 | `rewardlyexportdialog.*` | 「导出到 Rewardly」：加分/扣分行，勾选后导出 Excel |
 | `rewardlyconfigdialog.*` | 「配置加分项」（`[rewardly]` 段） |
 | `deadlinedialog.*` | 「设置迟到时间」（`[periods]` 段） |
-| `exceptiondialog.*` | 「设置例外」：按日期临时覆盖某时段的分界/迟到时间（仅内存） |
+| `exceptiondialog.*` | 「设置例外」：按日期临时覆盖某时段的分界/迟到时间，或忽略整个时段（仅内存） |
 | `tests/` | Qt Test 用例，覆盖非 UI 逻辑与各窗口的关键交互 |
 
 全局量：`std::vector<QString> extstunames`（下标 = 学号，0 为占位）与
@@ -93,10 +93,16 @@ config.toml 结构：
 - 例外（设置例外）：`split` 覆盖该时段结束的分界（早上 → `morning_noon_split`，
   中午 → `noon_evening_split`），`deadline` 覆盖该时段的截止时间。晚上是当天
   最后一个时段，没有后续分界，其 `split` 无意义（界面禁用，也不存入列表）。
+  `ignore == true` 表示该日期该时段被**整体忽略**：不生成早上签到加分，也不生成
+  该时段的迟到/未签到扣分；此时 `split`/`deadline` 不生效，校验也跳过它们。
+  忽略只影响 Rewardly 计分行，不改变时段划分：`signlogparser.*` 仍照常判定
+  period/status，由 `RewardlyExportDialog::buildRows(..., ignoredPeriods)` 过滤。
   例外是**一次性内存数据**：只由「导出到 Rewardly」窗口持有，不写 config.toml，
   关闭窗口即失效；因此 `ConfigManager::forDate(config, date, exceptions)` 与
   `parseSignLogFile*(path, date, config, exceptions)` 都要求调用方**显式传入**列表
-  （默认空列表 = 不套用）。查看数据/导出数据窗口不传例外，仍按全局配置统计。
+  （默认空列表 = 不套用）。每个日期被忽略的时段由
+  `ConfigManager::ignoredPeriodsForDate(date, exceptions)` 单独取出，传给
+  `buildRows()`。查看数据/导出数据窗口不传例外，仍按全局配置统计。
 - 早上加分只给早上时段 `签到` 的前 N 名（`morning_sign_bonus_count`）。
 - 未签到 = 该时段内没有任何记录；迟到也算"已签到"，不重复计未签到。
 - 分数为小数（2 位），正数加分、负数扣分，Excel 单元格用 `Format 0.00`。

@@ -234,6 +234,11 @@ ConfigData ConfigManager::forDate(const ConfigData &config, const QDate &date,
         if (ex.date != date) {
             continue;
         }
+        // An ignored period has no boundary/deadline override: it only
+        // suppresses that period's Rewardly rows for this day.
+        if (ex.ignore) {
+            continue;
+        }
         switch (ex.period) {
         case 0: // 早上: boundary to noon + morning deadline
             if (ex.split.isValid()) {
@@ -264,6 +269,24 @@ ConfigData ConfigManager::forDate(const ConfigData &config, const QDate &date,
     return effective;
 }
 
+QSet<int> ConfigManager::ignoredPeriodsForDate(
+    const QDate &date, const QVector<PeriodException> &exceptions)
+{
+    QSet<int> ignored;
+
+    if (!date.isValid()) {
+        return ignored;
+    }
+
+    for (const auto &ex : exceptions) {
+        if (ex.ignore && ex.date == date && ex.period >= 0 && ex.period <= 2) {
+            ignored.insert(ex.period);
+        }
+    }
+
+    return ignored;
+}
+
 QString ConfigManager::validateExceptions(
     const ConfigData &config, const QVector<PeriodException> &exceptions)
 {
@@ -289,6 +312,11 @@ QString ConfigManager::validateExceptions(
 
         for (const auto &ex : exceptions) {
             if (ex.date != date) {
+                continue;
+            }
+            // Ignored periods carry no time semantics, so the deadline vs.
+            // boundary check does not apply to them.
+            if (ex.ignore) {
                 continue;
             }
             // A period's deadline (迟到时间) must not be later than the

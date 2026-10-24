@@ -38,6 +38,11 @@ private slots:
     void buildRowsLateStudentNotAbsent();
     void buildRowsCustomAbsentDeductions();
     void dateExceptionShiftsMorningBonus();
+    void buildRowsSkipsIgnoredMorning();
+    void buildRowsSkipsMultipleIgnoredPeriods();
+    void buildRowsAllPeriodsIgnored();
+    void ignoredPeriodHasNoAbsentRows();
+    void dateExceptionIgnoresEvening();
 };
 
 namespace {
@@ -337,6 +342,113 @@ void TestRewardly::dateExceptionShiftsMorningBonus()
     QCOMPARE(exceptedRows.size(), 1);
     QCOMPARE(exceptedRows[0].name, QString("张三"));
     QCOMPARE(exceptedRows[0].reason, QString("早上签到"));
+}
+
+void TestRewardly::buildRowsSkipsIgnoredMorning()
+{
+    ConfigData cfg = ConfigManager::defaultConfig();
+
+    QVector<RewardlyRow> rows = RewardlyExportDialog::buildRows(
+        makeRecords(), {}, kDate, cfg, QSet<int>{0});
+
+    // Morning bonus and morning late are gone; noon/evening lates remain.
+    QCOMPARE(rows.size(), 2);
+    QCOMPARE(rows[0].name, QString("钱七"));
+    QCOMPARE(rows[0].reason, QString("中午迟到"));
+    QCOMPARE(rows[1].name, QString("孙八"));
+    QCOMPARE(rows[1].reason, QString("晚上迟到"));
+
+    for (const auto &row : rows) {
+        QVERIFY(!row.reason.startsWith(QString("早上")));
+    }
+}
+
+void TestRewardly::buildRowsSkipsMultipleIgnoredPeriods()
+{
+    ConfigData cfg = ConfigManager::defaultConfig();
+
+    QVector<RewardlyRow> rows = RewardlyExportDialog::buildRows(
+        makeRecords(), {}, kDate, cfg, QSet<int>{0, 1});
+
+    // Only the evening late is left.
+    QCOMPARE(rows.size(), 1);
+    QCOMPARE(rows[0].name, QString("孙八"));
+    QCOMPARE(rows[0].reason, QString("晚上迟到"));
+}
+
+void TestRewardly::buildRowsAllPeriodsIgnored()
+{
+    ConfigData cfg = ConfigManager::defaultConfig();
+
+    QVector<RewardlyRow> rows = RewardlyExportDialog::buildRows(
+        makeRecords(),
+        {QString("张三"), QString("李四")},
+        kDate, cfg, QSet<int>{0, 1, 2});
+
+    // Nothing is scored on a day whose three periods are all ignored.
+    QVERIFY(rows.isEmpty());
+}
+
+void TestRewardly::ignoredPeriodHasNoAbsentRows()
+{
+    // 张三 signed in the morning only. Ignoring the morning must suppress
+    // both the morning bonus and the morning absent rows, while noon and
+    // evening absents are still computed normally.
+    QVector<SignRecord> records;
+    records.append({QString("张三"), kDate, QTime(8, 30, 0), 0, QString("签到")});
+
+    ConfigData cfg = ConfigManager::defaultConfig();
+    QVector<RewardlyRow> rows = RewardlyExportDialog::buildRows(
+        records,
+        {QString("张三"), QString("李四")},
+        kDate, cfg, QSet<int>{0});
+
+    // 张三 + 李四 absent at noon, and the same at evening.
+    QCOMPARE(rows.size(), 4);
+    QCOMPARE(countByReason(rows, QString("早上签到")), 0);
+    QCOMPARE(countByReason(rows, QString("早上迟到")), 0);
+    QCOMPARE(countByReason(rows, QString("早上未签到")), 0);
+    QCOMPARE(countByReason(rows, QString("中午未签到")), 2);
+    QCOMPARE(countByReason(rows, QString("晚上未签到")), 2);
+}
+
+void TestRewardly::dateExceptionIgnoresEvening()
+{
+    // End-to-end through the parser: the ignored period is still classified
+    // normally (period/status are unchanged), but its scoring rows are gone.
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QString("2026-08-08.log"));
+
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    QTextStream out(&f);
+    out << "2026.08.08 18:30:00, 孙八, Signed\n"; // evening late by default
+    f.close();
+
+    ConfigData cfg = ConfigManager::defaultConfig();
+
+    PeriodException evening;
+    evening.date = kDate;
+    evening.period = 2;
+    evening.ignore = true;
+
+    QVector<SignRecord> records = parseSignLogFile(path, kDate, cfg, {evening});
+    QCOMPARE(records.size(), 1);
+    QCOMPARE(records[0].period, 2);
+    QCOMPARE(records[0].status, QString("迟到"));
+
+    const QSet<int> ignored =
+        ConfigManager::ignoredPeriodsForDate(kDate, {evening});
+    QVERIFY(ignored.contains(2));
+
+    QVector<RewardlyRow> rows =
+        RewardlyExportDialog::buildRows(records, {}, kDate, cfg, ignored);
+    QVERIFY(rows.isEmpty());
+
+    // The ignore entry is bound to its own date only.
+    QVERIFY(ConfigManager::ignoredPeriodsForDate(kDate.addDays(1), {evening})
+                .isEmpty());
 }
 
 QTEST_MAIN(TestRewardly)

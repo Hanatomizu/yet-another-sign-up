@@ -67,6 +67,9 @@ public:
      * @param allStudents Full student roster (used to compute absents).
      * @param date The date those records belong to.
      * @param config Scoring configuration.
+     * @param ignoredPeriods Periods ignored for @p date (设置例外 with
+     *        「忽略该时段」). Ignored periods produce no bonus, late or
+     *        absent rows.
      * @return Rewardly rows: morning top-N on-time sign-ins (bonus), all
      *         late records (deduction) and all absent students per period
      *         (deduction).
@@ -74,7 +77,8 @@ public:
     static QVector<RewardlyRow> buildRows(const QVector<SignRecord> &records,
                                           const QSet<QString> &allStudents,
                                           const QDate &date,
-                                          const ConfigData &config);
+                                          const ConfigData &config,
+                                          const QSet<int> &ignoredPeriods = {});
 
 private slots:
     void refreshData();

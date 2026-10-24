@@ -24,6 +24,7 @@
 #include <QTime>
 #include <QDate>
 #include <QVector>
+#include <QSet>
 
 /**
  * @brief One per-day period exception (设置例外).
@@ -46,19 +47,26 @@
  *
  * The @c split is therefore "the time at which this period ends and the
  * next one begins". An invalid QTime means "keep the global value".
+ *
+ * When @c ignore is true the whole period is ignored for that date: it
+ * contributes no Rewardly rows at all (no 早上签到 bonus, no 迟到 deduction,
+ * no 未签到 deduction). In that case @c split and @c deadline are unused and
+ * do not change the day's effective configuration.
  */
 struct PeriodException {
     QDate date;
     int period = 0;   // 0 = morning, 1 = noon, 2 = evening
     QTime split;
     QTime deadline;
+    bool ignore = false;   // true = the whole period is ignored that day
 
     bool operator==(const PeriodException &other) const
     {
         return date == other.date
             && period == other.period
             && split == other.split
-            && deadline == other.deadline;
+            && deadline == other.deadline
+            && ignore == other.ignore;
     }
 };
 
@@ -133,7 +141,8 @@ public:
      * passes its own (in-memory) list.
      *
      * Other dates are untouched, so callers must ask for the effective
-     * config of the day they are parsing.
+     * config of the day they are parsing. Exceptions with @c ignore set are
+     * skipped: they never move a boundary or a deadline.
      *
      * @param config Base configuration loaded from config.toml.
      * @param date The day the returned configuration applies to.
@@ -144,11 +153,27 @@ public:
                               const QVector<PeriodException> &exceptions);
 
     /**
+     * @brief Collect the periods ignored on one specific date.
+     *
+     * Scans @p exceptions for entries with @c ignore set that match
+     * @p date and returns their period indices. Ignored periods produce no
+     * Rewardly rows at all (no bonus, late or absent deduction).
+     *
+     * @param date The day to query.
+     * @param exceptions The (in-memory) exception list to scan.
+     * @return Set of ignored periods (0 = 早上, 1 = 中午, 2 = 晚上); empty
+     *         when the date is invalid or nothing is ignored.
+     */
+    static QSet<int> ignoredPeriodsForDate(
+        const QDate &date, const QVector<PeriodException> &exceptions);
+
+    /**
      * @brief Validate a list of period exceptions.
      *
      * Checks that every entry has a valid date and period, that a period's
      * 迟到时间 (deadline) is not later than its 分界时间 (split), and that
      * on any given date the 早/午分界 does not come after the 午/晚分界.
+     * Ignored entries (@c ignore == true) are exempt from the time checks.
      *
      * @param config Base configuration (global boundaries/deadlines).
      * @param exceptions The (in-memory) exception list to check.

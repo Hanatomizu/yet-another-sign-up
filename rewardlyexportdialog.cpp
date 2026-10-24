@@ -147,14 +147,24 @@ QVector<RewardlyRow> RewardlyExportDialog::buildRows(
     const QVector<SignRecord> &records,
     const QSet<QString> &allStudents,
     const QDate &date,
-    const ConfigData &config)
+    const ConfigData &config,
+    const QSet<int> &ignoredPeriods)
 {
     QVector<RewardlyRow> rows;
     QString dateStr = date.toString("yyyy-MM-dd");
 
+    // Records that belong to an ignored period take no part in scoring at
+    // all (no bonus, no late deduction, and no absent row for that period).
+    QVector<SignRecord> activeRecords;
+    for (const auto &rec : records) {
+        if (!ignoredPeriods.contains(rec.period)) {
+            activeRecords.append(rec);
+        }
+    }
+
     // 1. Morning top-N on-time sign-ins (bonus)
     QVector<SignRecord> morningOnTime;
-    for (const auto &rec : records) {
+    for (const auto &rec : activeRecords) {
         if (rec.period == 0 && rec.status == QString("签到")) {
             morningOnTime.append(rec);
         }
@@ -171,7 +181,7 @@ QVector<RewardlyRow> RewardlyExportDialog::buildRows(
     }
 
     // 2. All late records across all periods (deduction)
-    for (const auto &rec : records) {
+    for (const auto &rec : activeRecords) {
         if (rec.status != QString("迟到")) {
             continue;
         }
@@ -193,7 +203,7 @@ QVector<RewardlyRow> RewardlyExportDialog::buildRows(
     QSet<QString> morningSigned;
     QSet<QString> noonSigned;
     QSet<QString> eveningSigned;
-    for (const auto &rec : records) {
+    for (const auto &rec : activeRecords) {
         switch (rec.period) {
         case 0: morningSigned.insert(rec.name); break;
         case 1: noonSigned.insert(rec.name);    break;
@@ -201,22 +211,29 @@ QVector<RewardlyRow> RewardlyExportDialog::buildRows(
         }
     }
 
-    QSet<QString> morningAbsent = allStudents - morningSigned;
-    for (const auto &name : morningAbsent) {
-        rows.append({name, dateStr, signPeriodName(0),
-                     config.morningAbsentDeduction, QString("早上未签到")});
+    // An ignored period is omitted completely: no absent rows either.
+    if (!ignoredPeriods.contains(0)) {
+        QSet<QString> morningAbsent = allStudents - morningSigned;
+        for (const auto &name : morningAbsent) {
+            rows.append({name, dateStr, signPeriodName(0),
+                         config.morningAbsentDeduction, QString("早上未签到")});
+        }
     }
 
-    QSet<QString> noonAbsent = allStudents - noonSigned;
-    for (const auto &name : noonAbsent) {
-        rows.append({name, dateStr, signPeriodName(1),
-                     config.noonAbsentDeduction, QString("中午未签到")});
+    if (!ignoredPeriods.contains(1)) {
+        QSet<QString> noonAbsent = allStudents - noonSigned;
+        for (const auto &name : noonAbsent) {
+            rows.append({name, dateStr, signPeriodName(1),
+                         config.noonAbsentDeduction, QString("中午未签到")});
+        }
     }
 
-    QSet<QString> eveningAbsent = allStudents - eveningSigned;
-    for (const auto &name : eveningAbsent) {
-        rows.append({name, dateStr, signPeriodName(2),
-                     config.eveningAbsentDeduction, QString("晚上未签到")});
+    if (!ignoredPeriods.contains(2)) {
+        QSet<QString> eveningAbsent = allStudents - eveningSigned;
+        for (const auto &name : eveningAbsent) {
+            rows.append({name, dateStr, signPeriodName(2),
+                         config.eveningAbsentDeduction, QString("晚上未签到")});
+        }
     }
 
     return rows;
@@ -263,7 +280,13 @@ void RewardlyExportDialog::refreshData()
             continue;
         }
 
-        QVector<RewardlyRow> rows = buildRows(records, allStudents, date, config);
+        // Periods the user chose to ignore for this date (忽略该时段): they
+        // produce no bonus/late/absent rows at all.
+        const QSet<int> ignoredPeriods =
+            ConfigManager::ignoredPeriodsForDate(date, exceptions);
+
+        QVector<RewardlyRow> rows =
+            buildRows(records, allStudents, date, config, ignoredPeriods);
         for (const auto &row : rows) {
             appendRowToTable(row);
         }
