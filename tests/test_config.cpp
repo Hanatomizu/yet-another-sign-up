@@ -42,6 +42,9 @@ private slots:
     void ignoredPeriodLeavesConfigUntouched();
     void ignoredPeriodsForDateFiltersByDate();
     void validateExceptionsAcceptsIgnoredPeriod();
+
+    void excusedPeriodsForDateFiltersByRange();
+    void validateStudentLeavesChecksFields();
 };
 
 void TestConfig::init()
@@ -397,6 +400,84 @@ void TestConfig::validateExceptionsAcceptsIgnoredPeriod()
     PeriodException badPeriod = ignored;
     badPeriod.period = 3;
     QVERIFY(!ConfigManager::validateExceptions(cfg, {badPeriod}).isEmpty());
+}
+
+void TestConfig::excusedPeriodsForDateFiltersByRange()
+{
+    StudentLeaveException zhangsan;
+    zhangsan.name = QString("张三");
+    zhangsan.dateFrom = QDate(2026, 10, 1);
+    zhangsan.dateTo = QDate(2026, 10, 3);
+    zhangsan.periods = {0, 1};
+
+    StudentLeaveException lisi;
+    lisi.name = QString("李四");
+    lisi.dateFrom = QDate(2026, 10, 3);
+    lisi.dateTo = QDate(2026, 10, 3);
+    lisi.periods = {2};
+
+    const QVector<StudentLeaveException> leaves = {zhangsan, lisi};
+
+    // Both ends of the range are inclusive.
+    const auto firstDay =
+        ConfigManager::excusedPeriodsForDate(QDate(2026, 10, 1), leaves);
+    QCOMPARE(int(firstDay.size()), 1);
+    QCOMPARE(firstDay.value(QString("张三")), (QSet<int>{0, 1}));
+    QVERIFY(!firstDay.contains(QString("李四")));
+
+    // On 10-03 both students are on leave, each in their own periods.
+    const auto lastDay =
+        ConfigManager::excusedPeriodsForDate(QDate(2026, 10, 3), leaves);
+    QCOMPARE(int(lastDay.size()), 2);
+    QCOMPARE(lastDay.value(QString("张三")), (QSet<int>{0, 1}));
+    QCOMPARE(lastDay.value(QString("李四")), (QSet<int>{2}));
+
+    // Outside the range nothing is excused; invalid dates are empty.
+    QVERIFY(ConfigManager::excusedPeriodsForDate(QDate(2026, 10, 4), leaves)
+                .isEmpty());
+    QVERIFY(ConfigManager::excusedPeriodsForDate(QDate(), leaves).isEmpty());
+
+    // Overlapping leaves for the same student union their periods.
+    StudentLeaveException overlap;
+    overlap.name = QString("张三");
+    overlap.dateFrom = QDate(2026, 10, 3);
+    overlap.dateTo = QDate(2026, 10, 5);
+    overlap.periods = {2};
+    const auto unioned = ConfigManager::excusedPeriodsForDate(
+        QDate(2026, 10, 3), {zhangsan, overlap});
+    QCOMPARE(unioned.value(QString("张三")), (QSet<int>{0, 1, 2}));
+}
+
+void TestConfig::validateStudentLeavesChecksFields()
+{
+    StudentLeaveException leave;
+    leave.name = QString("张三");
+    leave.dateFrom = QDate(2026, 10, 1);
+    leave.dateTo = QDate(2026, 10, 2);
+    leave.periods = {0};
+
+    QVERIFY(ConfigManager::validateStudentLeaves({leave}).isEmpty());
+    QVERIFY(ConfigManager::validateStudentLeaves({}).isEmpty());
+
+    StudentLeaveException badName = leave;
+    badName.name.clear();
+    QVERIFY(!ConfigManager::validateStudentLeaves({badName}).isEmpty());
+
+    StudentLeaveException badRange = leave;
+    badRange.dateTo = QDate(2026, 9, 30);
+    QVERIFY(!ConfigManager::validateStudentLeaves({badRange}).isEmpty());
+
+    StudentLeaveException noPeriods = leave;
+    noPeriods.periods.clear();
+    QVERIFY(!ConfigManager::validateStudentLeaves({noPeriods}).isEmpty());
+
+    StudentLeaveException badPeriod = leave;
+    badPeriod.periods = {3};
+    QVERIFY(!ConfigManager::validateStudentLeaves({badPeriod}).isEmpty());
+
+    StudentLeaveException badDate = leave;
+    badDate.dateFrom = QDate();
+    QVERIFY(!ConfigManager::validateStudentLeaves({badDate}).isEmpty());
 }
 
 QTEST_GUILESS_MAIN(TestConfig)

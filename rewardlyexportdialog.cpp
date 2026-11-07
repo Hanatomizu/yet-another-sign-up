@@ -49,7 +49,8 @@ RewardlyExportDialog::RewardlyExportDialog(QWidget *parent)
         QString("选择日期范围，生成 Rewardly 加分数据。\n")
         + QString("导出内容：每日早上签到前N名（加分）+ 全部早/中/晚迟到、未签到（扣分）。\n")
         + QString("勾选左侧复选框选择要导出的记录，点击保存写入 Excel。\n")
-        + QString("若某天的时段分界或签到截止与平时不同，可点击「设置例外」按日期临时调整"
+        + QString("若某天的时段分界或签到截止与平时不同，或有人请假，"
+                  "可点击「设置例外」按日期临时调整"
                   "（仅本次窗口有效，不写入配置）。"),
         this);
     titleLabel->setWordWrap(true);
@@ -123,7 +124,7 @@ void RewardlyExportDialog::onSetExceptionClicked()
 {
     // Opened as its own top-level window (no parent): a parented QWidget
     // would be embedded into this window and painted over its contents.
-    auto *dlg = new ExceptionDialog(exceptions);
+    auto *dlg = new ExceptionDialog(exceptions, studentLeaves);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->setWindowFlag(Qt::WindowStaysOnTopHint);
     connect(dlg, &ExceptionDialog::applied,
@@ -132,11 +133,13 @@ void RewardlyExportDialog::onSetExceptionClicked()
 }
 
 void RewardlyExportDialog::onExceptionsApplied(
-    const QVector<PeriodException> &next)
+    const QVector<PeriodException> &next,
+    const QVector<StudentLeaveException> &leaves)
 {
-    // One-off, in-memory only: the list is kept for this window's lifetime
+    // One-off, in-memory only: the lists are kept for this window's lifetime
     // and never saved to config.toml.
     exceptions = next;
+    studentLeaves = leaves;
 
     // The exceptions change how the selected date range is parsed (period
     // boundaries + deadlines), so the table has to be rebuilt.
@@ -148,9 +151,16 @@ QVector<RewardlyRow> RewardlyExportDialog::buildRows(
     const QSet<QString> &allStudents,
     const QDate &date,
     const ConfigData &config,
-    const QSet<int> &ignoredPeriods)
+    const QSet<int> &ignoredPeriods,
+    const QHash<QString, QSet<int>> &excusedPeriods)
 {
     QVector<RewardlyRow> rows;
+
+    // Whether a student is excused (on leave) for a period that day. Excused
+    // students get no 迟到 and no 未签到 deduction for that period.
+    const auto isExcused = [&excusedPeriods](const QString &name, int period) {
+        return excusedPeriods.value(name).contains(period);
+    };
     QString dateStr = date.toString("yyyy-MM-dd");
 
     // Records that belong to an ignored period take no part in scoring at
@@ -185,6 +195,11 @@ QVector<RewardlyRow> RewardlyExportDialog::buildRows(
         if (rec.status != QString("迟到")) {
             continue;
         }
+        // A student on leave is not penalized for being late in the
+        // excused periods.
+        if (isExcused(rec.name, rec.period)) {
+            continue;
+        }
         double points = 0.0;
         QString reason;
         switch (rec.period) {
@@ -215,6 +230,10 @@ QVector<RewardlyRow> RewardlyExportDialog::buildRows(
     if (!ignoredPeriods.contains(0)) {
         QSet<QString> morningAbsent = allStudents - morningSigned;
         for (const auto &name : morningAbsent) {
+            // Students on leave are not marked absent.
+            if (isExcused(name, 0)) {
+                continue;
+            }
             rows.append({name, dateStr, signPeriodName(0),
                          config.morningAbsentDeduction, QString("早上未签到")});
         }
@@ -223,6 +242,9 @@ QVector<RewardlyRow> RewardlyExportDialog::buildRows(
     if (!ignoredPeriods.contains(1)) {
         QSet<QString> noonAbsent = allStudents - noonSigned;
         for (const auto &name : noonAbsent) {
+            if (isExcused(name, 1)) {
+                continue;
+            }
             rows.append({name, dateStr, signPeriodName(1),
                          config.noonAbsentDeduction, QString("中午未签到")});
         }
@@ -231,6 +253,9 @@ QVector<RewardlyRow> RewardlyExportDialog::buildRows(
     if (!ignoredPeriods.contains(2)) {
         QSet<QString> eveningAbsent = allStudents - eveningSigned;
         for (const auto &name : eveningAbsent) {
+            if (isExcused(name, 2)) {
+                continue;
+            }
             rows.append({name, dateStr, signPeriodName(2),
                          config.eveningAbsentDeduction, QString("晚上未签到")});
         }
@@ -285,8 +310,13 @@ void RewardlyExportDialog::refreshData()
         const QSet<int> ignoredPeriods =
             ConfigManager::ignoredPeriodsForDate(date, exceptions);
 
-        QVector<RewardlyRow> rows =
-            buildRows(records, allStudents, date, config, ignoredPeriods);
+        // Students on leave for this date: their excused periods produce no
+        // 迟到/未签到 deductions.
+        const QHash<QString, QSet<int>> excused =
+            ConfigManager::excusedPeriodsForDate(date, studentLeaves);
+
+        QVector<RewardlyRow> rows = buildRows(
+            records, allStudents, date, config, ignoredPeriods, excused);
         for (const auto &row : rows) {
             appendRowToTable(row);
         }

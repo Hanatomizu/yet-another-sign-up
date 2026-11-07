@@ -43,6 +43,11 @@ private slots:
     void buildRowsAllPeriodsIgnored();
     void ignoredPeriodHasNoAbsentRows();
     void dateExceptionIgnoresEvening();
+
+    void leaveExcusesLateAndAbsent();
+    void leaveKeepsOnTimeMorningBonus();
+    void leaveOnlyAffectsSelectedPeriodsAndStudents();
+    void leaveRangeDrivesExcusedPeriods();
 };
 
 namespace {
@@ -449,6 +454,112 @@ void TestRewardly::dateExceptionIgnoresEvening()
     // The ignore entry is bound to its own date only.
     QVERIFY(ConfigManager::ignoredPeriodsForDate(kDate.addDays(1), {evening})
                 .isEmpty());
+}
+
+void TestRewardly::leaveExcusesLateAndAbsent()
+{
+    // 张三 is late in the morning, 李四 has no morning record; both are on
+    // leave for the morning, so neither produces a morning deduction.
+    QVector<SignRecord> records;
+    records.append({QString("张三"), kDate, QTime(9, 10, 0), 0, QString("迟到")});
+
+    ConfigData cfg = ConfigManager::defaultConfig();
+    QHash<QString, QSet<int>> excused;
+    excused[QString("张三")].insert(0);
+    excused[QString("李四")].insert(0);
+
+    QVector<RewardlyRow> rows = RewardlyExportDialog::buildRows(
+        records, {QString("张三"), QString("李四"), QString("王五")},
+        kDate, cfg, {}, excused);
+
+    // No morning late row for 张三 and no morning absent row for him or
+    // 李四; 王五 (not on leave) is still marked absent in the morning.
+    // Their leave covers the morning only, so everyone is absent at noon
+    // and in the evening.
+    QCOMPARE(countByReason(rows, QString("早上迟到")), 0);
+    QCOMPARE(countByReason(rows, QString("早上未签到")), 1);
+    for (const auto &row : rows) {
+        if (row.reason == QString("早上未签到")) {
+            QCOMPARE(row.name, QString("王五"));
+        }
+    }
+    QCOMPARE(countByReason(rows, QString("中午未签到")), 3);
+    QCOMPARE(countByReason(rows, QString("晚上未签到")), 3);
+    QCOMPARE(rows.size(), 7);
+}
+
+void TestRewardly::leaveKeepsOnTimeMorningBonus()
+{
+    // A student on leave who nevertheless signed in on time keeps the bonus.
+    QVector<SignRecord> records;
+    records.append({QString("张三"), kDate, QTime(8, 30, 0), 0, QString("签到")});
+
+    ConfigData cfg = ConfigManager::defaultConfig();
+    QHash<QString, QSet<int>> excused;
+    excused[QString("张三")] = {0, 1, 2};
+
+    QVector<RewardlyRow> rows = RewardlyExportDialog::buildRows(
+        records, {QString("张三")}, kDate, cfg, {}, excused);
+
+    QCOMPARE(rows.size(), 1);
+    QCOMPARE(rows[0].name, QString("张三"));
+    QCOMPARE(rows[0].reason, QString("早上签到"));
+    QCOMPARE(rows[0].points, 2.0);
+}
+
+void TestRewardly::leaveOnlyAffectsSelectedPeriodsAndStudents()
+{
+    // 张三 is excused for noon only; his morning late still counts, and a
+    // different student's noon late is unaffected.
+    QVector<SignRecord> records;
+    records.append({QString("张三"), kDate, QTime(9, 5, 0), 0, QString("迟到")});
+    records.append({QString("张三"), kDate, QTime(12, 45, 0), 1, QString("迟到")});
+    records.append({QString("李四"), kDate, QTime(12, 50, 0), 1, QString("迟到")});
+
+    ConfigData cfg = ConfigManager::defaultConfig();
+    QHash<QString, QSet<int>> excused;
+    excused[QString("张三")] = {1};
+
+    QVector<RewardlyRow> rows = RewardlyExportDialog::buildRows(
+        records, {}, kDate, cfg, {}, excused);
+
+    QCOMPARE(countByReason(rows, QString("早上迟到")), 1);
+    QCOMPARE(countByReason(rows, QString("中午迟到")), 1);
+
+    for (const auto &row : rows) {
+        if (row.reason == QString("中午迟到")) {
+            QCOMPARE(row.name, QString("李四"));
+        }
+    }
+}
+
+void TestRewardly::leaveRangeDrivesExcusedPeriods()
+{
+    // End-to-end: a leave covering 10-01..10-03 excuses 张三 only inside
+    // that range, and only in the chosen period.
+    StudentLeaveException leave;
+    leave.name = QString("张三");
+    leave.dateFrom = QDate(2026, 8, 1);
+    leave.dateTo = QDate(2026, 8, 10);
+    leave.periods = {0};
+
+    ConfigData cfg = ConfigManager::defaultConfig();
+    const QHash<QString, QSet<int>> excused =
+        ConfigManager::excusedPeriodsForDate(kDate, {leave});
+    QCOMPARE(excused.value(QString("张三")), (QSet<int>{0}));
+
+    QVector<SignRecord> records;
+    records.append({QString("张三"), kDate, QTime(9, 5, 0), 0, QString("迟到")});
+
+    // Empty roster so no absent rows are generated; the morning late is
+    // the only candidate and it is excused.
+    QVector<RewardlyRow> inside = RewardlyExportDialog::buildRows(
+        records, {}, kDate, cfg, {}, excused);
+    QVERIFY(inside.isEmpty());
+
+    // One day after the range: the late deduction comes back.
+    const QDate after = leave.dateTo.addDays(1);
+    QVERIFY(ConfigManager::excusedPeriodsForDate(after, {leave}).isEmpty());
 }
 
 QTEST_MAIN(TestRewardly)

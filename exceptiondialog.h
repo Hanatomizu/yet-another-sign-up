@@ -28,6 +28,8 @@
 #include <QPushButton>
 #include <QTableWidget>
 #include <QLabel>
+#include <QListWidget>
+#include <QStringList>
 
 #include "configmanager.h"
 
@@ -51,18 +53,28 @@
  * ignored period produces no Rewardly rows at all — no 早上签到 bonus, no
  * 迟到 and no 未签到 deduction. The 分界时间/迟到时间 inputs are disabled
  * in that case and the entry stores no times.
+ *
+ * The window also manages per-student leave exceptions (按人请假) on a
+ * second tab: pick a date range, one or more periods and any number of
+ * students from the roster. A student on leave gets no 迟到 and no 未签到
+ * deduction in the selected periods (a timely 早上签到 bonus is kept).
  */
 class ExceptionDialog : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit ExceptionDialog(const QVector<PeriodException> &initial,
-                             QWidget *parent = nullptr);
+    explicit ExceptionDialog(
+        const QVector<PeriodException> &initial,
+        const QVector<StudentLeaveException> &initialLeaves = {},
+        QWidget *parent = nullptr);
     ~ExceptionDialog();
 
-    /// Exceptions currently listed in the table.
+    /// Period exceptions currently listed in the table.
     QVector<PeriodException> exceptions() const { return list; }
+
+    /// Per-student leave exceptions currently listed in the table.
+    QVector<StudentLeaveException> studentLeaves() const { return leaveList; }
 
 public slots:
     // Public so tests can drive them directly. MSVC mangles member access
@@ -70,22 +82,28 @@ public slots:
     // `#define private public` cannot link against private functions.
     void onAddClicked();
     void onRemoveClicked();
+    void onAddLeaveClicked();
+    void onRemoveLeaveClicked();
     void onAcceptClicked();
 
 signals:
     /**
-     * @brief Emitted right before the window closes with the edited list.
+     * @brief Emitted right before the window closes with the edited lists.
      *
-     * Only 确定 emits this; closing with 取消 leaves the owner's list as-is.
+     * Only 确定 emits this; closing with 取消 leaves the owner's lists as-is.
      */
-    void applied(const QVector<PeriodException> &exceptions);
+    void applied(const QVector<PeriodException> &exceptions,
+                 const QVector<StudentLeaveException> &studentLeaves);
 
 private slots:
     void onPeriodChanged();
     void onTableSelectionChanged();
     void onTableDoubleClicked(int row, int column);
+    void onLeaveTableSelectionChanged();
+    void onLeaveTableDoubleClicked(int row, int column);
 
 private:
+    // --- 时段例外 tab ---
     QDateEdit *dateEdit;
     QComboBox *periodCombo;
     QCheckBox *ignoreCheck;
@@ -97,13 +115,36 @@ private:
     QPushButton *addButton;
     QPushButton *removeButton;
 
-    /// Working copy of the exception list; handed out via applied().
+    // --- 按人请假 tab ---
+    QDateEdit *leaveStartEdit;
+    QDateEdit *leaveEndEdit;
+    QCheckBox *leaveMorningCheck;
+    QCheckBox *leaveNoonCheck;
+    QCheckBox *leaveEveningCheck;
+    QListWidget *studentList;
+    QTableWidget *leaveTable;
+    QLabel *leaveStatusLabel;
+    QPushButton *leaveAddButton;
+    QPushButton *leaveRemoveButton;
+
+    /// Working copy of the period exception list; handed out via applied().
     QVector<PeriodException> list;
+
+    /// Working copy of the per-student leave list; handed out via applied().
+    QVector<StudentLeaveException> leaveList;
 
     void refreshTable();
     void selectRow(int row);
     void loadRowIntoEditors(int row);
     void updateSplitEnabled();
+
+    void populateStudentList();
+    QStringList checkedStudentNames() const;
+    void setCheckedStudent(const QString &name);
+    QSet<int> checkedLeavePeriods() const;
+    void refreshLeaveTable();
+    void selectLeaveRow(int row);
+    void loadLeaveRowIntoEditors(int row);
 };
 
 #endif // EXCEPTIONDIALOG_H

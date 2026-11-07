@@ -18,9 +18,13 @@
 #include <QFile>
 #include <QCoreApplication>
 
+#include <vector>
+#include <map>
+
 // Pre-include every Qt header exceptiondialog.h pulls in so they are not
 // re-parsed while `private` is redefined.
 #include <QString>
+#include <QStringList>
 #include <QDate>
 #include <QTime>
 #include <QVector>
@@ -33,6 +37,8 @@
 #include <QPushButton>
 #include <QTableWidget>
 #include <QLabel>
+#include <QListWidget>
+#include <QListWidgetItem>
 
 // Only re-exposes private data members; see the file header for why the
 // functions under test are public instead.
@@ -41,6 +47,11 @@
 #undef private
 
 #include "configmanager.h"
+
+// exceptiondialog.cpp fills its 按人请假 roster from the global extstunames
+// (normally defined in arbiter.cpp); provide definitions for the test.
+std::vector<QString> extstunames;
+std::map<QString, int> nti;
 
 class TestExceptionDialog : public QObject
 {
@@ -59,6 +70,12 @@ private slots:
     void ignoreDisablesTimeEditorsAndShowsFlag();
     void loadingIgnoredRowRestoresState();
     void replaceIgnoredWithTimesKeepsSingleRow();
+
+    void rosterListsStudents();
+    void addLeaveForMultipleStudents();
+    void leaveAddUpdatesAndRemoves();
+    void loadingLeaveRowRestoresState();
+    void acceptEmitsLeaveList();
 };
 
 void TestExceptionDialog::init()
@@ -66,6 +83,11 @@ void TestExceptionDialog::init()
     // The window pre-fills the editors from the global [periods] values, so
     // start every case from the defaults (and keep the run hermetic).
     QFile::remove(ConfigManager::configFilePath());
+
+    // Index 0 is the placeholder, like the real roster.
+    extstunames = {QString(), QString("张三"), QString("李四"),
+                   QString("王五")};
+    nti.clear();
 }
 
 void TestExceptionDialog::cleanup()
@@ -184,7 +206,8 @@ void TestExceptionDialog::acceptEmitsAppliedList()
     QVector<PeriodException> received;
     bool emitted = false;
     QObject::connect(&dlg, &ExceptionDialog::applied,
-                     [&](const QVector<PeriodException> &list) {
+                     [&](const QVector<PeriodException> &list,
+                         const QVector<StudentLeaveException> &) {
                          emitted = true;
                          received = list;
                      });
@@ -220,7 +243,10 @@ void TestExceptionDialog::cancelKeepsOwnerListUnchanged()
 
     bool emitted = false;
     QObject::connect(&dlg, &ExceptionDialog::applied,
-                     [&] { emitted = true; });
+                     [&](const QVector<PeriodException> &,
+                         const QVector<StudentLeaveException> &) {
+                         emitted = true;
+                     });
     dlg.close();
     QVERIFY(!emitted);
     // The owner's list is untouched: only the window's own copy changed.
@@ -312,6 +338,155 @@ void TestExceptionDialog::replaceIgnoredWithTimesKeepsSingleRow()
     QVERIFY(dlg.list[0].ignore);
     QVERIFY(!dlg.list[0].deadline.isValid());
     QCOMPARE(dlg.table->item(0, 4)->text(), QString("是"));
+}
+
+void TestExceptionDialog::rosterListsStudents()
+{
+    ExceptionDialog dlg({});
+
+    // The placeholder at index 0 is skipped; the rest are listed unchecked.
+    QCOMPARE(dlg.studentList->count(), 3);
+    QCOMPARE(dlg.studentList->item(0)->text(), QString("张三"));
+    QCOMPARE(dlg.studentList->item(1)->text(), QString("李四"));
+    QCOMPARE(dlg.studentList->item(2)->text(), QString("王五"));
+    for (int i = 0; i < dlg.studentList->count(); ++i) {
+        QCOMPARE(dlg.studentList->item(i)->checkState(), Qt::Unchecked);
+    }
+}
+
+void TestExceptionDialog::addLeaveForMultipleStudents()
+{
+    ExceptionDialog dlg({});
+
+    dlg.leaveStartEdit->setDate(QDate(2026, 10, 1));
+    dlg.leaveEndEdit->setDate(QDate(2026, 10, 3));
+    dlg.leaveEveningCheck->setChecked(false);   // 早上 + 中午 only
+    dlg.studentList->item(0)->setCheckState(Qt::Checked);   // 张三
+    dlg.studentList->item(1)->setCheckState(Qt::Checked);   // 李四
+    dlg.onAddLeaveClicked();
+
+    QCOMPARE(dlg.leaveTable->rowCount(), 2);
+    QCOMPARE(int(dlg.leaveList.size()), 2);
+
+    // One entry per student, same date range and periods.
+    for (const auto &leave : dlg.leaveList) {
+        QCOMPARE(leave.dateFrom, QDate(2026, 10, 1));
+        QCOMPARE(leave.dateTo, QDate(2026, 10, 3));
+        QCOMPARE(leave.periods, (QSet<int>{0, 1}));
+    }
+
+    // Table is sorted by name: 张三 before 李四.
+    QCOMPARE(dlg.leaveTable->item(0, 0)->text(), QString("张三"));
+    QCOMPARE(dlg.leaveTable->item(0, 1)->text(), QString("2026-10-01"));
+    QCOMPARE(dlg.leaveTable->item(0, 2)->text(), QString("2026-10-03"));
+    QCOMPARE(dlg.leaveTable->item(0, 3)->text(), QString("早上、中午"));
+    QCOMPARE(dlg.leaveTable->item(1, 0)->text(), QString("李四"));
+}
+
+void TestExceptionDialog::leaveAddUpdatesAndRemoves()
+{
+    ExceptionDialog dlg({});
+
+    dlg.leaveStartEdit->setDate(QDate(2026, 10, 2));
+    dlg.leaveEndEdit->setDate(QDate(2026, 10, 2));
+    dlg.leaveNoonCheck->setChecked(false);
+    dlg.leaveEveningCheck->setChecked(false);   // 早上 only
+    dlg.studentList->item(0)->setCheckState(Qt::Checked);   // 张三
+    dlg.onAddLeaveClicked();
+
+    QCOMPARE(dlg.leaveTable->rowCount(), 1);
+    QCOMPARE(int(dlg.leaveList.size()), 1);
+    QCOMPARE(dlg.leaveTable->item(0, 3)->text(), QString("早上"));
+
+    // Same student + same range: replaces the periods in place.
+    dlg.leaveMorningCheck->setChecked(false);
+    dlg.leaveNoonCheck->setChecked(true);
+    dlg.onAddLeaveClicked();
+
+    QCOMPARE(dlg.leaveTable->rowCount(), 1);
+    QCOMPARE(int(dlg.leaveList.size()), 1);
+    QVERIFY(!dlg.leaveList[0].periods.contains(0));
+    QVERIFY(dlg.leaveList[0].periods.contains(1));
+    QCOMPARE(dlg.leaveTable->item(0, 3)->text(), QString("中午"));
+
+    // A different date range is a separate entry.
+    dlg.leaveStartEdit->setDate(QDate(2026, 10, 5));
+    dlg.leaveEndEdit->setDate(QDate(2026, 10, 6));
+    dlg.onAddLeaveClicked();
+
+    QCOMPARE(dlg.leaveTable->rowCount(), 2);
+    QCOMPARE(int(dlg.leaveList.size()), 2);
+
+    // Removing the selected row (10-02) leaves the 10-05 entry.
+    dlg.leaveTable->selectRow(0);
+    dlg.onRemoveLeaveClicked();
+
+    QCOMPARE(dlg.leaveTable->rowCount(), 1);
+    QCOMPARE(int(dlg.leaveList.size()), 1);
+    QCOMPARE(dlg.leaveList[0].dateFrom, QDate(2026, 10, 5));
+    QCOMPARE(dlg.leaveTable->item(0, 0)->text(), QString("张三"));
+}
+
+void TestExceptionDialog::loadingLeaveRowRestoresState()
+{
+    StudentLeaveException leave;
+    leave.name = QString("李四");
+    leave.dateFrom = QDate(2026, 10, 3);
+    leave.dateTo = QDate(2026, 10, 4);
+    leave.periods = {0, 2};   // 早上 + 晚上
+
+    ExceptionDialog dlg({}, {leave});
+
+    // Double-clicking the row loads it into the editors (private slot, so
+    // invoke through the meta-object like the period-exception tests do).
+    QVERIFY(QMetaObject::invokeMethod(&dlg, "onLeaveTableDoubleClicked",
+                                      Q_ARG(int, 0), Q_ARG(int, 0)));
+
+    QCOMPARE(dlg.leaveStartEdit->date(), QDate(2026, 10, 3));
+    QCOMPARE(dlg.leaveEndEdit->date(), QDate(2026, 10, 4));
+    QVERIFY(dlg.leaveMorningCheck->isChecked());
+    QVERIFY(!dlg.leaveNoonCheck->isChecked());
+    QVERIFY(dlg.leaveEveningCheck->isChecked());
+
+    // Only the loaded student stays checked.
+    for (int i = 0; i < dlg.studentList->count(); ++i) {
+        const QListWidgetItem *item = dlg.studentList->item(i);
+        QCOMPARE(item->checkState(),
+                 item->text() == QString("李四") ? Qt::Checked : Qt::Unchecked);
+    }
+}
+
+void TestExceptionDialog::acceptEmitsLeaveList()
+{
+    ExceptionDialog dlg({});
+
+    dlg.leaveStartEdit->setDate(QDate(2026, 10, 8));
+    dlg.leaveEndEdit->setDate(QDate(2026, 10, 9));
+    dlg.leaveEveningCheck->setChecked(false);
+    dlg.studentList->item(2)->setCheckState(Qt::Checked);   // 王五
+    dlg.onAddLeaveClicked();
+
+    QVector<PeriodException> receivedPeriods;
+    QVector<StudentLeaveException> receivedLeaves;
+    bool emitted = false;
+    QObject::connect(&dlg, &ExceptionDialog::applied,
+                     [&](const QVector<PeriodException> &periods,
+                         const QVector<StudentLeaveException> &leaves) {
+                         emitted = true;
+                         receivedPeriods = periods;
+                         receivedLeaves = leaves;
+                     });
+
+    dlg.onAcceptClicked();
+
+    QVERIFY(emitted);
+    QVERIFY(receivedPeriods.isEmpty());
+    QCOMPARE(int(receivedLeaves.size()), 1);
+    QCOMPARE(receivedLeaves[0].name, QString("王五"));
+    QCOMPARE(receivedLeaves[0].dateFrom, QDate(2026, 10, 8));
+    QCOMPARE(receivedLeaves[0].dateTo, QDate(2026, 10, 9));
+    QCOMPARE(receivedLeaves[0].periods, (QSet<int>{0, 1}));
+    QCOMPARE(dlg.studentLeaves(), receivedLeaves);
 }
 
 QTEST_MAIN(TestExceptionDialog)

@@ -47,7 +47,7 @@ cd build && ctest --output-on-failure
 | `rewardlyexportdialog.*` | 「导出到 Rewardly」：加分/扣分行，勾选后导出 Excel |
 | `rewardlyconfigdialog.*` | 「配置加分项」（`[rewardly]` 段） |
 | `deadlinedialog.*` | 「设置迟到时间」（`[periods]` 段） |
-| `exceptiondialog.*` | 「设置例外」：按日期临时覆盖某时段的分界/迟到时间，或忽略整个时段（仅内存） |
+| `exceptiondialog.*` | 「设置例外」：按日期临时覆盖某时段的分界/迟到时间、忽略整个时段，或按人设置请假日期范围与时段（仅内存） |
 | `tests/` | Qt Test 用例，覆盖非 UI 逻辑与各窗口的关键交互 |
 
 全局量：`std::vector<QString> extstunames`（下标 = 学号，0 为占位）与
@@ -81,8 +81,9 @@ config.toml 结构：
                 *_late_deduction / *_absent_deduction       # 加分正、扣分负
 ```
 
-例外（设置例外）**不在 config.toml 中**：它是「导出到 Rewardly」窗口持有的
-一次性内存数据，见第 5 节。
+例外（设置例外，含按时段的 `PeriodException` 与按人的
+`StudentLeaveException`）**不在 config.toml 中**：它们是「导出到 Rewardly」
+窗口持有的一次性内存数据，见第 5 节。
 
 ## 5. 关键领域规则
 
@@ -103,6 +104,15 @@ config.toml 结构：
   （默认空列表 = 不套用）。每个日期被忽略的时段由
   `ConfigManager::ignoredPeriodsForDate(date, exceptions)` 单独取出，传给
   `buildRows()`。查看数据/导出数据窗口不传例外，仍按全局配置统计。
+- 按人请假（`StudentLeaveException`，在「设置例外」的「按人请假」页）：姓名 +
+  起止日期（两端都含）+ 请假时段集合（0/1/2，可多选）。该学生在请假日期内的
+  这些时段**不生成迟到扣分，也不生成未签到扣分**；若实际按时签到，早上签到
+  加分仍然保留。同样是一次性内存数据，由「导出到 Rewardly」窗口持有，不写
+  config.toml。每个日期每个学生的请假时段由
+  `ConfigManager::excusedPeriodsForDate(date, leaves)` 取出
+  （`QHash<姓名, QSet<时段>>`），传给
+  `RewardlyExportDialog::buildRows(..., excusedPeriods)`；校验用
+  `ConfigManager::validateStudentLeaves()`。
 - 早上加分只给早上时段 `签到` 的前 N 名（`morning_sign_bonus_count`）。
 - 未签到 = 该时段内没有任何记录；迟到也算"已签到"，不重复计未签到。
 - 分数为小数（2 位），正数加分、负数扣分，Excel 单元格用 `Format 0.00`。
@@ -165,9 +175,12 @@ config.toml 结构：
   config.toml，务必让测试自己清理。
 - `parseSignLogFileAll()` 的 `date` 参数决定"哪一天的例外生效"；直接调用
   `determineSignPeriod`/`determineSignStatus` 时不会自动套用例外。
-- 例外不落盘：它必须由调用方（目前是「导出到 Rewardly」窗口）以
-  `QVector<PeriodException>` 显式传给 `parseSignLogFile*()`；config.toml 中出现
-  `[[exceptions]]` 会被忽略，也不要在其中写入例外。
+- 例外不落盘：时段例外必须由调用方（目前是「导出到 Rewardly」窗口）以
+  `QVector<PeriodException>` 显式传给 `parseSignLogFile*()`；按人请假则以
+  `QVector<StudentLeaveException>` 传给 `excusedPeriodsForDate()`。
+  config.toml 中出现 `[[exceptions]]` 会被忽略，也不要在其中写入例外。
+- 按人请假只过滤「迟到」「未签到」两类扣分行，不过滤早上签到加分，也不改变
+  时段/状态判定（判定仍在 `signlogparser.*`）。
 - QTime 比较用 `<=`：分界时刻归属前一时段，写测试时注意边界。
 - `main.cpp` 的单实例锁（QLocalServer 名字 `Hanatomizu_Yetanothersignup`）会阻止
   同时运行两个实例；做手动 UI 验证前确认已关闭旧实例。

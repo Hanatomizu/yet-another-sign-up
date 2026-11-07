@@ -335,6 +335,64 @@ QString ConfigManager::validateExceptions(
     return QString();
 }
 
+QHash<QString, QSet<int>> ConfigManager::excusedPeriodsForDate(
+    const QDate &date, const QVector<StudentLeaveException> &leaves)
+{
+    QHash<QString, QSet<int>> excused;
+
+    if (!date.isValid()) {
+        return excused;
+    }
+
+    for (const auto &leave : leaves) {
+        if (leave.name.isEmpty()
+            || !leave.dateFrom.isValid()
+            || !leave.dateTo.isValid()) {
+            continue;
+        }
+        // Both ends of the leave range are inclusive.
+        if (date < leave.dateFrom || date > leave.dateTo) {
+            continue;
+        }
+        for (int period : leave.periods) {
+            if (period >= 0 && period <= 2) {
+                excused[leave.name].insert(period);
+            }
+        }
+    }
+
+    return excused;
+}
+
+QString ConfigManager::validateStudentLeaves(
+    const QVector<StudentLeaveException> &leaves)
+{
+    for (const auto &leave : leaves) {
+        if (leave.name.isEmpty()) {
+            return QString("请假设置包含空的姓名。");
+        }
+        if (!leave.dateFrom.isValid() || !leave.dateTo.isValid()) {
+            return QString("「%1」的请假设置包含无效的日期。").arg(leave.name);
+        }
+        if (leave.dateFrom > leave.dateTo) {
+            return QString("「%1」的请假开始日期不能晚于结束日期。")
+                .arg(leave.name);
+        }
+        if (leave.periods.isEmpty()) {
+            return QString("「%1」的请假设置至少需要选择一个时段。")
+                .arg(leave.name);
+        }
+        for (int period : leave.periods) {
+            if (period < 0 || period > 2) {
+                return QString("「%1」的请假设置包含无效的时段。")
+                    .arg(leave.name);
+            }
+        }
+    }
+
+    return QString();
+}
+
 QString ConfigManager::migrateLegacyNamelist()
 {
     QString legacyPath = QDir::cleanPath(

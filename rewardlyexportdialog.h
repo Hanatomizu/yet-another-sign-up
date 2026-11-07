@@ -26,6 +26,7 @@
 #include <QTableWidget>
 #include <QLabel>
 #include <QSet>
+#include <QHash>
 
 #include "configmanager.h"
 #include "signlogparser.h"
@@ -70,21 +71,29 @@ public:
      * @param ignoredPeriods Periods ignored for @p date (设置例外 with
      *        「忽略该时段」). Ignored periods produce no bonus, late or
      *        absent rows.
+     * @param excusedPeriods Per-student leave exceptions for @p date
+     *        (按人请假): 姓名 → 时段集合. An excused student gets no 迟到
+     *        and no 未签到 deduction in those periods; a timely morning
+     *        sign-in still earns the bonus.
      * @return Rewardly rows: morning top-N on-time sign-ins (bonus), all
      *         late records (deduction) and all absent students per period
      *         (deduction).
      */
-    static QVector<RewardlyRow> buildRows(const QVector<SignRecord> &records,
-                                          const QSet<QString> &allStudents,
-                                          const QDate &date,
-                                          const ConfigData &config,
-                                          const QSet<int> &ignoredPeriods = {});
+    static QVector<RewardlyRow> buildRows(
+        const QVector<SignRecord> &records,
+        const QSet<QString> &allStudents,
+        const QDate &date,
+        const ConfigData &config,
+        const QSet<int> &ignoredPeriods = {},
+        const QHash<QString, QSet<int>> &excusedPeriods = {});
 
 private slots:
     void refreshData();
     void onSaveClicked();
     void onSetExceptionClicked();
-    void onExceptionsApplied(const QVector<PeriodException> &exceptions);
+    void onExceptionsApplied(
+        const QVector<PeriodException> &exceptions,
+        const QVector<StudentLeaveException> &studentLeaves);
 
 private:
     QDateEdit *startDateEdit;
@@ -99,6 +108,14 @@ private:
      * this window is closed; they are never written to config.toml.
      */
     QVector<PeriodException> exceptions;
+
+    /**
+     * @brief One-off per-student leave exceptions (按人请假), in memory only.
+     *
+     * Same lifetime as @c exceptions: used while building this window's
+     * rows and dropped when the window closes.
+     */
+    QVector<StudentLeaveException> studentLeaves;
 
     void appendRowToTable(const RewardlyRow &row);
 };

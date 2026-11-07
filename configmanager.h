@@ -25,6 +25,7 @@
 #include <QDate>
 #include <QVector>
 #include <QSet>
+#include <QHash>
 
 /**
  * @brief One per-day period exception (设置例外).
@@ -67,6 +68,35 @@ struct PeriodException {
             && split == other.split
             && deadline == other.deadline
             && ignore == other.ignore;
+    }
+};
+
+/**
+ * @brief One per-student leave exception (按人请假).
+ *
+ * For every day in [dateFrom, dateTo], the student named @c name is
+ * excused from the selected periods: no 迟到 deduction and no 未签到
+ * deduction is generated for them in those periods. A timely morning
+ * sign-in still earns the 早上签到 bonus (the student did show up).
+ *
+ * Like PeriodException, student leaves are a one-off, in-memory setting:
+ * they are never written to config.toml and only live as long as the
+ * 「导出到 Rewardly」 window that owns them.
+ *
+ * @c periods holds period indices: 0 = 早上, 1 = 中午, 2 = 晚上.
+ */
+struct StudentLeaveException {
+    QString name;
+    QDate dateFrom;
+    QDate dateTo;       // inclusive
+    QSet<int> periods;
+
+    bool operator==(const StudentLeaveException &other) const
+    {
+        return name == other.name
+            && dateFrom == other.dateFrom
+            && dateTo == other.dateTo
+            && periods == other.periods;
     }
 };
 
@@ -181,6 +211,34 @@ public:
      */
     static QString validateExceptions(const ConfigData &config,
                                       const QVector<PeriodException> &exceptions);
+
+    /**
+     * @brief Collect the periods each student is excused from on a date.
+     *
+     * Scans @p leaves for entries whose [dateFrom, dateTo] range contains
+     * @p date (both ends inclusive) and returns a map of 姓名 → 时段集合.
+     * Excused periods produce no 迟到 or 未签到 deduction for that student
+     * (a timely 早上签到 bonus is still generated).
+     *
+     * @param date The day to query.
+     * @param leaves The (in-memory) leave list to scan.
+     * @return Map of student name to excused period indices (0/1/2).
+     */
+    static QHash<QString, QSet<int>> excusedPeriodsForDate(
+        const QDate &date, const QVector<StudentLeaveException> &leaves);
+
+    /**
+     * @brief Validate a list of per-student leave exceptions.
+     *
+     * Checks that every entry has a non-empty student name, valid dates,
+     * dateFrom <= dateTo, at least one period, and only period indices
+     * 0/1/2.
+     *
+     * @param leaves The (in-memory) leave list to check.
+     * @return Empty string when valid, otherwise a Chinese error message.
+     */
+    static QString validateStudentLeaves(
+        const QVector<StudentLeaveException> &leaves);
 
 private:
     /**
